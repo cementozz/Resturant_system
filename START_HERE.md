@@ -18,6 +18,7 @@ On the original development computer, no installation is needed because a portab
 Public website: https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/  
 Local demo website: http://127.0.0.1:5174/customer/  
 Staff/POS: http://127.0.0.1:4173/pos/  
+Remote Owner: https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/admin.html  
 Local website: http://127.0.0.1:4173/customer/
 
 Demo staff login: **owner** / **1234**, only with explicit local demo mode. Public-connected production uses your configured strong password.

@@ -60,3 +60,11 @@ No GitHub Release package has been published or installed on the restaurant PC. 
 GitHub CI run 36356782944 passed both Ubuntu verification (including browser E2E) and Windows updater checks for deployed commit 784bd63. After explicit user authorization, Sites version 2 and the paired POS were activated. The post-deployment read-only browser/API checks passed with zero console/page errors, matching catalog revisions, healthy synchronization, all six strong staff logins and preserved existing operational records. See DEPLOYMENT_STATUS.md.
 
 Automatic approval review blocked the proposed live test account/order/payment/stock/loyalty transaction; that script did not run. End-to-end live transaction verification therefore remains pending explicit authorization. Isolated transaction tests passed and do not substitute for that hosted acceptance gate.
+
+## Completed hosted transaction acceptance
+
+Following the user's explicit approval, the live acceptance run passed all eight check groups: browser signup; same account UUID in two browsers; website order imported once into POS; paid/fulfilled loyalty earning; synchronized status/history; audited refund restoring stock and points; remote Owner portal login; zero unexpected browser console/page errors. Exactly 3 earned points were reversed, test collection/refund netted to zero, and the marked account and temporary payment method were disabled. The cloud order finished cancelled/refunded.
+
+A no-change remote menu-price command reached Applied and preserved the published price. The first manual Node HTTP probe incorrectly replaced its staff cookie with an unrelated hosting cookie; the probe was corrected to retain the named staff cookie and then passed. Real-browser authentication had already passed. No application change was required. Final production checks: online, matching catalog revisions, zero pending events, zero dead letters, no last sync error, SQLite integrity OK.
+
+GitHub PR #1 is merged and the local checkout is on main. The deployed application code matches the merged version. All source CI checks passed before the merge; subsequent documentation records these live results. Physical printer acceptance remains outstanding.

@@ -4,7 +4,7 @@ Arabic-first, bilingual restaurant management and customer ordering platform. In
 
 **Public customer website:** https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/
 
-**0.6 is deployed:** the public site and paired POS are activated. See [deployment status and verification](DEPLOYMENT_STATUS.md). Staff use their configured strong passwords; remote staff access remains opt-in.
+**0.6 is deployed:** the public site and paired POS are activated. See [deployment status and verification](DEPLOYMENT_STATUS.md). Staff use their configured strong passwords. Remote Owner access is enabled at [Owner administration](https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/admin.html); additional remote staff access remains opt-in.
 
 The configured restaurant computer synchronizes with this hosted website. A fresh GitHub download runs a separate localhost demo until private connection settings are configured. See [public hosting and POS operation](trackbite-system/docs/PUBLIC-HOSTING.md).
 
