@@ -1,3 +1,4 @@
+process.env.DEMO_MODE='true';process.env.CLOUD_API_URL='';
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -31,7 +32,7 @@ async function wait(){for(let i=0;i<30;i++){try{await j('/api/status');return}ca
  inv=await j('/api/inventory/summary',{headers:h});
  const beefAfter=Number(inv.summary.find(x=>x.ingredient_id===1).quantity_base);
  if(beefBefore-beefAfter!==10000) throw new Error('Production did not consume beef');
- const publicOrder=await j('/api/orders',{method:'POST',headers:{'content-type':'application/json','x-public-order':'1'},body:JSON.stringify({items:[{productId:4,qty:1}],payments:[{methodId:1,amount:35}],customerName:'Website Smoke'})});
+ const publicOrder=await j('/api/public/orders',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items:[{productId:4,qty:1}],payments:[{methodId:1,amount:35}],customerName:'Website Smoke',customerPhone:'01012345678',requestId:require('crypto').randomUUID(),expectedTotal:35})});
  const supplier=await j('/api/suppliers',{method:'POST',headers:h,body:JSON.stringify({name:'Smoke Supplier',phone:'0100'})});
  await j('/api/purchases',{method:'POST',headers:h,body:JSON.stringify({supplierId:supplier.id,invoiceNo:'SM-1',items:[{variantId:3,locationId:1,quantityPurchase:10,unitPricePurchase:4}]})});
  await j('/api/expenses',{method:'POST',headers:h,body:JSON.stringify({category:'Gas',description:'Smoke expense',amount:50,paymentMethodId:1})});

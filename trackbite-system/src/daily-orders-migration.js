@@ -1,6 +1,7 @@
-function migrate(db) {
+function migrate(db,dbPath) {
   db.exec('CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT DEFAULT CURRENT_TIMESTAMP)');
   if (db.prepare('SELECT 1 FROM schema_migrations WHERE version=8').get()) return;
+  const fs=require('node:fs'),path=require('node:path'),{DatabaseSync}=require('node:sqlite');const dir=path.join(path.dirname(dbPath),'backups');fs.mkdirSync(dir,{recursive:true});const target=path.join(dir,'before-v8-'+Date.now()+'.db');db.prepare('VACUUM INTO ?').run(target);const backup=new DatabaseSync(target,{readOnly:true});try{if(backup.prepare('PRAGMA integrity_check').get().integrity_check!=='ok')throw Error('Daily numbering backup verification failed')}finally{backup.close()}
   db.exec('BEGIN IMMEDIATE');
   try {
     const columns = db.prepare('PRAGMA table_info(orders)').all().map(column => column.name);

@@ -1,3 +1,4 @@
+process.env.DEMO_MODE='true';
 const assert=require('node:assert/strict'),fs=require('fs'),path=require('path'),crypto=require('crypto'),net=require('net');const {spawn}=require('child_process');
 const root=path.resolve(__dirname,'..'),temp=fs.mkdtempSync(path.join(__dirname,'platform-')),base='http://127.0.0.1:4197';let logs='';
 const server=spawn(process.execPath,['server.js'],{cwd:root,env:{...process.env,PORT:'4197',TRACKBITE_DB:path.join(temp,'test.db'),CLOUD_API_URL:''},stdio:['ignore','pipe','pipe']});server.stdout.on('data',d=>logs+=d);server.stderr.on('data',d=>logs+=d);

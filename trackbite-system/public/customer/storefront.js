@@ -1,3 +1,4 @@
+import {refreshAccount} from './modules/account.js';
 import {shop,$,$$,t,esc,name,language,save,request,safe,toast,method,changed,icon} from './modules/core.js';
 import {renderMenu,renderMeals,renderCart,openCart,closeCart} from './modules/menu.js';
 import {checkout} from './modules/checkout.js';
@@ -35,7 +36,7 @@ async function load(initial=false){
     if(!method())shop.method=shop.catalog.orderTypes[0]?.code||shop.catalog.orderTypes[0]?.id||'pickup';
     // Ignore malformed local state; unavailable products remain visible for explicit removal.
     shop.cart=shop.cart.filter(x=>x&&Number.isInteger(x.productId)&&Number.isInteger(x.qty)&&x.qty>0&&x.qty<=99&&(!x.modifiers||Array.isArray(x.modifiers))).map(x=>({...x,modifiers:x.modifiers||[],notes:String(x.notes||'')}));
-    render();await track();
+    if(initial&&!['local','demo-cloud'].includes(shop.catalog.service))await refreshAccount();render();await track();
   }catch(e){shop.online=false;renderMethods();renderCart();if(initial){$('#webProducts').innerHTML=`<div class="empty"><p>${t('تعذر تحميل القائمة. تحقق من الاتصال وحاول مرة أخرى.','Could not load the menu. Check your connection and try again.')}</p><button id="retryMenu">${t('حاول مرة أخرى','Try again')}</button></div>`;$('#retryMenu').onclick=()=>load(true)}}finally{refreshing=false}
 }
 renderCopy();load(true);

@@ -1,0 +1,3 @@
+function backoff(attempt,random=Math.random){return Math.round(Math.min(300000,1000*2**Math.min(12,Math.max(0,attempt-1)))*(0.75+random()*0.5))}
+function configuration(env=process.env){const url=(env.CLOUD_API_URL||'').replace(/\/$/,'');if(!url)return {url:'',secret:''};const secret=env.SYNC_SECRET||(env.DEMO_MODE==='true'?'trackbite-dev-secret':'');if(env.DEMO_MODE!=='true'&&(secret.length<32||secret==='trackbite-dev-secret'))throw Error('Production synchronization requires a private SYNC_SECRET of at least 32 characters');const parsed=new URL(url);if(env.DEMO_MODE!=='true'&&parsed.protocol!=='https:')throw Error('Production synchronization requires HTTPS');return {url,secret}}
+module.exports={backoff,configuration};

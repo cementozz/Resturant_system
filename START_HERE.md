@@ -3,6 +3,8 @@
 **Double-click `01_START_WEBSITE.bat` to run the customer website.**
 **اضغط مرتين على `01_START_WEBSITE.bat` لتشغيل موقع الطلبات.**
 
+**Version 0.6 is activated on the existing restaurant and public site. See [deployment status](DEPLOYMENT_STATUS.md). Strong staff credentials are saved privately on this PC in `.runtime/access/PRODUCTION-LOGINS.txt`; `1234` is demo-only.**
+
 On the original development computer, no installation is needed because a portable Node runtime is available in `.runtime`. For a fresh GitHub download, install Node.js 22.5 or newer first and make sure `node` is on PATH. The portable runtime, local databases and logs are not uploaded to GitHub; the application creates a fresh demo database on first run.
 
 | File | What it does / الوظيفة |
@@ -10,6 +12,7 @@ On the original development computer, no installation is needed because a portab
 | `01_START_WEBSITE.bat` | Starts both services and opens the customer website / تشغيل موقع العملاء |
 | `02_START_POS.bat` | Starts both services and opens staff/POS / تشغيل الكاشير والإدارة |
 | `03_STOP_TRACK_BITE.bat` | Stops services started by the launcher; keeps data / إيقاف النظام مع حفظ البيانات |
+| `05_INSTALL_APPROVED_UPDATE.bat` | Install a versioned, approved GitHub Release after backup and compatibility checks |
 | `04_CHECK_SYSTEM.bat` | Checks runtime, services, and menu connection / فحص التشغيل |
 
 Public website: https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/  
@@ -17,7 +20,7 @@ Local demo website: http://127.0.0.1:5174/customer/
 Staff/POS: http://127.0.0.1:4173/pos/  
 Local website: http://127.0.0.1:4173/customer/
 
-Demo staff login: **owner** / **1234**.
+Demo staff login: **owner** / **1234**, only with explicit local demo mode. Public-connected production uses your configured strong password.
 
 The public website is accessible from other devices. Keep the configured restaurant computer awake, online and running the POS to receive website orders. Localhost links only work on this computer while the services are running. Do not open HTML files directly: use the launchers so ordering and databases work. See [the public hosting guide](trackbite-system/docs/PUBLIC-HOSTING.md).
 

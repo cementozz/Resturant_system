@@ -19,7 +19,7 @@ export async function checkout(){
     const body=$('#checkoutBody');
     if(step===0){
       body.innerHTML=select('orderType',t('طريقة الاستلام','Order method'),shop.catalog.orderTypes,shop.method)+input('customerName',t('الاسم','Your name'),'text',draft.customerName||'','required maxlength="100" autocomplete="name"')+`<div id="deliveryFields">${deliveryFields()}</div>`+input('notes',t('ملاحظات الطلب (اختياري)','Order notes (optional)'),'text',draft.notes||'','maxlength="500"');
-      $('[name=customerPhone]',el).value=draft.customerPhone||'';$('[name=customerPhone]',el).required=true;$('[name=customerPhone]',el).autocomplete='tel';$('[name=customerPhone]',el).pattern='[+0-9 ()-]{7,20}';fillDelivery(draft.details,el);
+      $('[name=customerPhone]',el).value=draft.customerPhone||'';$('[name=customerPhone]',el).required=true;$('[name=customerPhone]',el).autocomplete='tel';$('[name=customerPhone]',el).pattern='[+0-9 ]{7,20}';fillDelivery(draft.details,el);
       const addresses=$('#savedAddresses');addresses.hidden=!delivery;addresses.innerHTML=shop.addresses.length?select('savedAddress',t('عنوان محفوظ','Saved address'),[{id:'',name_ar:'أدخل عنواناً جديداً',name_en:'Enter a new address'},...shop.addresses.map((a,i)=>({id:String(i),name_ar:a.label+' · '+a.fullAddress,name_en:a.label+' · '+a.fullAddress}))]):'';
       if($('[name=savedAddress]'))$('[name=savedAddress]').onchange=e=>{if(e.target.value!=='')fillDelivery(shop.addresses[Number(e.target.value)],el)};
       for(const label of $$('#deliveryFields label')){const key=$('input',label)?.name;if(key)label.hidden=!delivery&&key!=='customerPhone'}$('#deliveryFields details').hidden=!delivery;$('[name=fullAddress]',el).required=delivery;
@@ -35,12 +35,12 @@ export async function checkout(){
     busy=true;$('#checkoutNext').disabled=true;$('#checkoutBack').disabled=true;$('#dialogClose').disabled=true;
     try{
       const delivery=!!method()?.requires_delivery;
-      const body={items:shop.cart.map(({productId,qty,modifiers,notes})=>({productId,qty,modifiers,notes})),customerName:draft.customerName,customerPhone:draft.customerPhone,orderType:shop.method,deliveryDetails:delivery?draft.details:{},deliveryAddress:delivery?draft.details.fullAddress:null,notes:draft.notes,expectedTotal:totals().total};
+      const body={items:shop.cart.map(({productId,qty,modifiers,notes})=>({productId,qty,modifiers,notes})),customerName:draft.customerName,customerPhone:draft.customerPhone,orderType:shop.method,deliveryDetails:delivery?draft.details:{},deliveryAddress:delivery?draft.details.fullAddress:null,notes:draft.notes,expectedTotal:totals().total,rewardId:shop.reward?.id||null};
       const fingerprint=JSON.stringify(body);let pending=read('tb_web_pending',null);if(!pending||pending.fingerprint!==fingerprint)pending={fingerprint,id:crypto.randomUUID()};save('tb_web_pending',pending);
       const {order}=await request(shop.catalog.service==='local'?'/api/public/orders':'/api/orders',{...body,requestId:pending.id});
       const history={...order,date:new Date().toISOString(),items:body.items.map(x=>({...x,snapshot:{name_ar:product(x.productId)?.name_ar,name_en:product(x.productId)?.name_en}}))};
-      shop.history=[history,...shop.history.filter(o=>o.trackingToken!==order.trackingToken)].slice(0,50);save('tb_web_history',shop.history);localStorage.setItem('tb_tracking',order.trackingToken);localStorage.removeItem('tb_web_pending');
-      shop.profile={customerName:draft.customerName,customerPhone:draft.customerPhone,details:delivery?draft.details:shop.profile.details||{}};save('tb_delivery',shop.profile);if(delivery)rememberAddress(draft.details);
+      shop.history=[history,...shop.history.filter(o=>o.trackingToken!==order.trackingToken)].slice(0,50);if(!shop.account)save('tb_web_history',shop.history);localStorage.setItem('tb_tracking',order.trackingToken);localStorage.removeItem('tb_web_pending');
+      shop.profile={customerName:draft.customerName,customerPhone:draft.customerPhone,details:delivery?draft.details:shop.profile.details||{}};if(!shop.account)save('tb_delivery',shop.profile);if(delivery){if(shop.account)await request('/api/account/addresses',draft.details);else rememberAddress(draft.details);}shop.reward=null;
       shop.cart=[];changed();el.close();await track(order.trackingToken,true);
       await dialog(t('طلبك وصل!','Order received!'),`<div class="success-copy"><div class="success-mark">${icon('check')}</div><h3>#${order.sequential_no}</h3><p>${t('شكراً ليك! تابع تجهيز طلبك من شريط التتبع.','Thank you! Follow your order’s progress in the tracker.')}</p><p><strong>${money(order.total)}</strong> · ${t('الدفع عند الاستلام','Pay on receipt')}</p></div>`,()=>{},t('متابعة طلبي','Follow my order'));
     }finally{busy=false;if($('#checkoutNext'))$('#checkoutNext').disabled=false;if($('#checkoutBack'))$('#checkoutBack').disabled=false;if($('#dialogClose'))$('#dialogClose').disabled=false}

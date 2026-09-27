@@ -58,8 +58,8 @@ function financeReport(from=null,to=null){
   return {from:start,to:end,sales,payments:pays,expenses,netOperating:Number(sales.sales)-Number(expenses)};
 }
 
-function listUsers(){return all('SELECT id,username,display_name_ar,display_name_en,role,active,created_at FROM users ORDER BY id')}
-function createUser({username,displayNameAr,displayNameEn,role,password}){const r=run('INSERT INTO users(username,display_name_ar,display_name_en,role,password_hash) VALUES(?,?,?,?,?)',username,displayNameAr,displayNameEn||null,role,hashPassword(password));return Number(r.lastInsertRowid)}
+function listUsers(){return all('SELECT id,global_id,username,display_name_ar,display_name_en,role,active,created_at,last_login,password_changed_at FROM users ORDER BY id')}
+function createUser({username,displayNameAr,displayNameEn,role,password}){require('./auth').validateCredentials(username,password);if(!require('./auth').roles.includes(role))throw Error('Invalid role');const r=run('INSERT INTO users(global_id,username,display_name_ar,display_name_en,role,password_hash,password_changed_at) VALUES(?,?,?,?,?,?,CURRENT_TIMESTAMP)',crypto.randomUUID(),username,required(displayNameAr),displayNameEn||null,role,hashPassword(password));return Number(r.lastInsertRowid)}
 
 function addCategory({nameAr,nameEn}){const max=one('SELECT COALESCE(MAX(sort_order),0) m FROM categories').m;const r=run('INSERT INTO categories(name_ar,name_en,sort_order) VALUES(?,?,?)',nameAr,nameEn||null,Number(max)+1);return Number(r.lastInsertRowid)}
 function addProduct({categoryId,stationId,nameAr,nameEn,sku,price}){const r=run('INSERT INTO products(category_id,station_id,name_ar,name_en,sku,price) VALUES(?,?,?,?,?,?)',categoryId,stationId||null,nameAr,nameEn||null,sku||null,Number(price));return Number(r.lastInsertRowid)}

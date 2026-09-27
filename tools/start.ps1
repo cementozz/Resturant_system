@@ -17,12 +17,14 @@ if(Test-Path -LiteralPath $connectionFile){
   $cloudUri=[uri]$connection.cloudUrl
   if($cloudUri.Scheme -ne 'https' -or $cloudUri.UserInfo -or -not $cloudUri.Host){throw 'The public website must have a valid HTTPS address.'}
   if(-not $connection.syncSecret -or $connection.syncSecret.Length -lt 32){throw 'The public website connection key is missing or invalid.'}
+  $env:DEMO_MODE='false'
   $env:CLOUD_API_URL=$connection.cloudUrl.TrimEnd('/')
   $env:SYNC_SECRET=$connection.syncSecret
   $env:SYNC_TIMEOUT_MS='15000'
   $website=$env:CLOUD_API_URL+'/customer/'
   $services=@(@{Name='restaurant';Script='server.js';Port=4173})
 }else{
+  $env:DEMO_MODE='true'
   if(-not $env:SYNC_SECRET){$env:SYNC_SECRET='trackbite-dev-secret'}
   $env:CLOUD_API_URL='http://127.0.0.1:5174'
 }
@@ -32,7 +34,7 @@ foreach($service in $services){
   $status=$null
   try{$status=Invoke-RestMethod $url -TimeoutSec 2}catch{}
   if($status){
-    $expected=if($service.Name -eq 'cloud'){$status.service -eq 'Track Bite Cloud'}else{[bool]$status.db -and [bool]$status.sync}
+    $expected=if($service.Name -eq 'cloud'){$status.service -eq 'Track Bite Cloud'}else{$status.service -eq 'Track Bite POS'}
     if(-not $expected){throw "Port $($service.Port) is occupied by another application."}
     Write-Host "$($service.Name) is already running."
     continue
@@ -53,7 +55,7 @@ Write-Host ''
 Write-Host "CUSTOMER WEBSITE: $website" -ForegroundColor Green
 Write-Host 'STAFF / POS:      http://127.0.0.1:4173/pos/' -ForegroundColor Green
 Write-Host 'LOCAL WEBSITE:    http://127.0.0.1:4173/customer/'
-Write-Host 'Demo staff login: owner / 1234'
+if($env:DEMO_MODE -eq 'true'){Write-Host 'Demo staff login: owner / 1234'}else{Write-Host 'Production: use your configured staff username and strong password.'}
 foreach($url in @($(if($Open -in @('website','all')){$website}),$(if($Open -in @('pos','all')){'http://127.0.0.1:4173/pos/'}))){
   if($url){try{Start-Process $url}catch{Write-Host "The browser could not open automatically. Open this link manually: $url" -ForegroundColor Yellow}}
 }

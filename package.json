@@ -1,16 +1,21 @@
 {
   "name": "trackbite-public-website",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "scripts": {
     "build": "node tools/prepare-public-site.cjs && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 5188",
-    "test": "node trackbite-system/tests/hosted-cloud.cjs"
+    "test": "node trackbite-system/tests/hosted-cloud.cjs && node trackbite-system/tests/security.cjs && node trackbite-system/tests/accounts.cjs && node trackbite-system/tests/connected.cjs && node trackbite-system/tests/updates.cjs",
+    "check": "node tools/check-source.cjs",
+    "test:browser": "node trackbite-system/tests/browser.cjs"
   },
-  "engines": { "node": ">=22.13.0" },
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
     "@openai/sites-vite-plugin": "0.2.0",
+    "@playwright/test": "^1.63.0",
     "vite": "8.0.13",
     "wrangler": "4.92.0"
   }
