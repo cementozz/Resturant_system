@@ -1,0 +1,35 @@
+name: Track Bite checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DEMO_MODE: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.3'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run check
+      - run: npm test --prefix trackbite-system
+      - run: npm run build
+      - run: npm test
+      - run: npm run test:browser
+  windows-updater:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.23.3'
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-updater.ps1

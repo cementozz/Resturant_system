@@ -10,7 +10,7 @@ const PUBLIC_SETTING_KEYS = new Set([
 
 function syncMigration(db) {
   db.exec('CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, applied_at TEXT DEFAULT CURRENT_TIMESTAMP)');
-  if (db.prepare('SELECT 1 FROM schema_migrations WHERE version=4').get()) return;
+  if (db.prepare('SELECT 1 FROM schema_migrations WHERE version=8').get()) return;
 
   db.exec('BEGIN IMMEDIATE');
   try {
@@ -43,7 +43,7 @@ function syncMigration(db) {
       insertSetting.run('settings', row.key, 'upsert', JSON.stringify(row), crypto.randomUUID());
     }
 
-    db.prepare('INSERT INTO schema_migrations(version) VALUES(4)').run();
+    db.prepare('INSERT INTO schema_migrations(version) VALUES(8)').run();
     db.exec('COMMIT');
   } catch (error) {
     db.exec('ROLLBACK');

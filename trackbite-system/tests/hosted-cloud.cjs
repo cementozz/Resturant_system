@@ -1,8 +1,9 @@
+process.env.DEMO_MODE='true';
 // Real Workers/D1 runtime, bridged to an isolated local POS. Never uses live data.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),http=require('node:http'),crypto=require('node:crypto');
 const {spawn}=require('node:child_process');
 const {Miniflare}=require('miniflare');
-const root=path.resolve(__dirname,'../..'),temp=fs.mkdtempSync(path.join(root,'.runtime','hosted-test-'));
+const root=path.resolve(__dirname,'../..');fs.mkdirSync(path.join(root,'.runtime'),{recursive:true});const temp=fs.mkdtempSync(path.join(root,'.runtime','hosted-test-'));
 const secret=crypto.randomBytes(32).toString('hex'),localUrl='http://127.0.0.1:4194',cloudUrl='http://127.0.0.1:5194';
 let mf,local,bridge,token,logs='';const pause=ms=>new Promise(r=>setTimeout(r,ms));
 const options={modules:true,scriptPath:path.join(root,'dist/server/index.mjs'),compatibilityDate:'2026-05-22',compatibilityFlags:['nodejs_compat'],bindings:{SYNC_SECRET:secret},d1Databases:['DB'],d1Persist:path.join(temp,'d1'),serviceBindings:{ASSETS:()=>new Response('asset')}};

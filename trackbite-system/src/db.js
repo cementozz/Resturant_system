@@ -32,6 +32,7 @@ function seed() {
       ['accountant','المحاسب','Accountant','accountant','1234'],
       ['kitchen','المطبخ','Kitchen','kitchen','1234']
     ];
+    if(process.env.DEMO_MODE!=='true'){require('./auth').validateCredentials('owner',process.env.INITIAL_OWNER_PASSWORD);users[0][4]=process.env.INITIAL_OWNER_PASSWORD;users.splice(1)}
     for (const u of users) run('INSERT INTO users(username,display_name_ar,display_name_en,role,password_hash) VALUES(?,?,?,?,?)', u[0],u[1],u[2],u[3],hashPassword(u[4]));
 
     [['BURGERS','برجر','Burgers'],['LOADED','لودد فرايز','Loaded Fries'],['SIDES','إضافات','Sides'],['DRINKS','مشروبات','Drinks']].forEach((c,i)=>run('INSERT INTO categories(id,name_ar,name_en,sort_order) VALUES(?,?,?,?)',i+1,c[1],c[2],i));
@@ -89,5 +90,7 @@ require('./printing/migration')(db);
 require('./settlement-migration')(db);
 require('./compatibility-migration')(db);
 require('./sync-migration')(db);
+require('./reliability-migration')(db,dbPath);
+require('./loyalty-migration')(db,dbPath);
 
 module.exports = { db, one, all, run, transaction, dbPath };

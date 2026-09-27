@@ -1,3 +1,4 @@
+process.env.DEMO_MODE='true';
 // Real local/cloud HTTP checks with isolated databases; never uses restaurant data.
 const assert=require('node:assert/strict');
 const fs=require('fs'),path=require('path'),crypto=require('crypto');

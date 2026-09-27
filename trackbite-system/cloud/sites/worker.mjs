@@ -1,6 +1,11 @@
+import {redemptionSchema,redemptionApi} from './redemptions.mjs';
+import {remoteSchema,remoteApi} from './remote.mjs';
+import {accountSchema,accountApi,customerSession,customerView} from './accounts.mjs';
+import validation from '../../public/shared/validation.js';
+import loyalty from '../../public/shared/loyalty.js';
 import pricing from '../../public/shared/pricing.js';
 
-const schema=[
+const schema=[...accountSchema,...remoteSchema,...redemptionSchema,
   'CREATE TABLE IF NOT EXISTS site_state(key TEXT PRIMARY KEY,value TEXT NOT NULL)',
   `CREATE TABLE IF NOT EXISTS site_orders(seq INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT NOT NULL UNIQUE,request_key TEXT NOT NULL UNIQUE,request_hash TEXT NOT NULL,tracking_token TEXT NOT NULL UNIQUE,status TEXT NOT NULL DEFAULT 'pending',payment_status TEXT NOT NULL DEFAULT 'due',payload TEXT NOT NULL,total REAL NOT NULL,local_order_id TEXT UNIQUE,error TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,imported_at TEXT)`,
   'CREATE TABLE IF NOT EXISTS site_sync_receipts(event_key TEXT PRIMARY KEY,received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
@@ -57,8 +62,10 @@ async function api(request,env,url){
   if(!env.DB)return json({error:'Order storage is not configured'},503);
   const path=url.pathname,verb=request.method;
   if(path.startsWith('/api/sync/')&&!await secureEqual(request.headers.get('x-sync-secret'),env.SYNC_SECRET))return json({error:'Unauthorized'},401);
+  if(path.startsWith('/api/sync/')&&env.INSTALLATION_ID&&request.headers.get('x-installation-id')!==env.INSTALLATION_ID)fail(403,'Incorrect restaurant installation');
   const db=await store(env.DB);
-  if(path==='/api/status'&&verb==='GET'){const heartbeat=await state(db,'heartbeat');return json({ok:true,service:'Track Bite Cloud',database:'managed-d1',heartbeat:heartbeat||null,restaurantOnline:online(heartbeat)})}
+  const accountResponse=await accountApi({db,request,url,body,json,fail,state,env});if(accountResponse)return accountResponse;const remoteResponse=await remoteApi({db,request,url,body,json,fail,state,env});if(remoteResponse)return remoteResponse;const redemptionResponse=await redemptionApi({db,request,url,body,json,fail,state,digest});if(redemptionResponse)return redemptionResponse;
+  if(path==='/api/status'&&verb==='GET'){const heartbeat=await state(db,'heartbeat');return json({ok:true,service:'Track Bite Cloud',heartbeat:heartbeat||null,restaurantOnline:online(heartbeat)})}
   if(path==='/api/public/menu'&&verb==='GET'){
     const c=JSON.parse(await state(db,'catalog')||'{"categories":[],"products":[],"modifiers":[],"orderTypes":[],"settings":{}}');
     return json({...c,online:online(await state(db,'heartbeat')),restaurant:{name_ar:c.settings?.restaurant_name_ar||'تراك بايت',name_en:c.settings?.restaurant_name_en||'Track Bite'}});
@@ -66,33 +73,39 @@ async function api(request,env,url){
   if(path==='/api/orders'&&verb==='POST'){
     if(request.headers.get('origin')&&request.headers.get('origin')!==url.origin)fail(403,'Cross-origin orders are not allowed');
     const b=await body(request),input=normalized(b),key=text(b.requestId,150);if(!/^[\w-]{16,150}$/.test(key))fail(400,'A valid request ID is required');
-    const hash=await digest(JSON.stringify(input));
+    try{input.items=validation.items(input.items);input.customerPhone=validation.phone(input.customerPhone)}catch(e){fail(400,e.message)}
+    const customer=await customerSession(db,request);if(customer){input.customerId=customer.id;input.memberCode=customerView(customer).member_code;input.customerPhone=customer.phone;input.customerName=customer.name}
+    input.rewardId=b.rewardId||null;
+    const hash=await digest(validation.canonical(input));
     const previous=await db.one('SELECT * FROM site_orders WHERE request_key=?',key);
     if(previous){if(previous.request_hash!==hash)fail(409,'Request ID already used for another order');return json({order:publicOrder(previous)},201)}
     if(!online(await state(db,'heartbeat')))fail(503,'Restaurant is offline; ordering is paused');
-    const catalog=JSON.parse(await state(db,'catalog')||'{}');const type=(catalog.orderTypes||[]).find(x=>(x.code||x.id)===input.orderType);if(!type)fail(400,'Order type unavailable');
+    const catalog=JSON.parse(await state(db,'catalog')||'{}');if(!customer&&catalog.settings?.guest_checkout_enabled==='false')fail(401,'Sign in to place an order');const type=(catalog.orderTypes||[]).find(x=>(x.code||x.id)===input.orderType);if(!type)fail(400,'Order type unavailable');
     if(!input.customerName||!/^\+?[0-9 ()-]{7,25}$/.test(input.customerPhone||''))fail(400,'Customer name and a valid mobile number are required');
     if(type.requires_delivery&&!input.deliveryAddress)fail(400,'Delivery address is required');
     const items=input.items.map(item=>{const p=(catalog.products||[]).find(x=>x.id===item.productId);if(!p)fail(400,'Product unavailable');let price=Number(p.price);for(const id of item.modifiers){const mod=(catalog.modifiers||[]).find(m=>m.id===id&&m.product_id===p.id);if(!mod)fail(400,'Modifier unavailable');price+=Number(mod.price)}if(!Number.isFinite(price)||price<0)fail(400,'Invalid product price');return {...item,price:pricing.round(price)}});
     const deliveryFee=type.requires_delivery?Number(catalog.settings?.delivery_fee||0):0;
-    const priced=pricing.calculate({subtotal:pricing.round(items.reduce((sum,item)=>sum+pricing.round(item.price*item.qty),0)),deliveryFee,settings:catalog.settings});
+    const subtotal=pricing.round(items.reduce((sum,item)=>sum+pricing.round(item.price*item.qty),0));let reward=null,discount=0;if(input.rewardId){if(catalog.loyaltySettings?.enabled===false)fail(400,'Loyalty is disabled');if(!customer)fail(401,'Sign in to redeem rewards');const rewards=JSON.parse(await state(db,'loyalty_rewards')||'[]');reward=rewards.find(r=>r.id===input.rewardId);try{discount=loyalty.discount(reward,items,subtotal)}catch(e){fail(400,e.message)}}
+    const priced=pricing.calculate({subtotal,discount,deliveryFee,settings:catalog.settings});
     if(!Number.isFinite(Number(b.expectedTotal))||Math.abs(Number(b.expectedTotal)-priced.total)>0.001)fail(409,'Menu prices changed. Reopen checkout to review the latest total.');
     await rateLimit(db,request);
     const id=crypto.randomUUID(),trackingToken=crypto.randomUUID().replaceAll('-','')+crypto.randomUUID().replaceAll('-','');
-    const payload={...input,cloudOrderId:id,items,deliveryFee,pricing:priced,total:priced.total};
+    const payload={...input,cloudOrderId:id,items,deliveryFee,discount,pricing:priced,total:priced.total,reward:reward?{...reward,redemption_key:'redeem:'+key}:null};
     // One atomic insert owns the request ID, amount, payload and private tracking token.
-    await db.run('INSERT INTO site_orders(id,request_key,request_hash,tracking_token,payload,total) VALUES(?,?,?,?,?,?) ON CONFLICT(request_key) DO NOTHING',id,key,hash,trackingToken,JSON.stringify(payload),priced.total);
+    const writes=[['INSERT INTO site_orders(id,request_key,request_hash,tracking_token,payload,total) VALUES(?,?,?,?,?,?) ON CONFLICT(request_key) DO NOTHING',id,key,hash,trackingToken,JSON.stringify(payload),priced.total]];
+    if(reward)writes.push(['INSERT OR IGNORE INTO site_loyalty(id,customer_id,order_id,type,delta,idempotency_key,reason,actor) SELECT ?,?,id,"redeem",?,?,?,? FROM site_orders WHERE request_key=? AND request_hash=?',crypto.randomUUID(),customer.id,-reward.points_cost,'redeem:'+key,'Reward: '+reward.name_en,customer.id,key,hash]);
+    try{await db.batch(writes)}catch(e){if(String(e).includes('Insufficient points'))fail(409,'Insufficient points');throw e}
     const saved=await db.one('SELECT * FROM site_orders WHERE request_key=?',key);if(saved.request_hash!==hash)fail(409,'Request ID already used for another order');return json({order:publicOrder(saved)},201);
   }
   const tracking=path.match(/^\/api\/tracking\/([a-f0-9]{48,64})$/);
   if(tracking&&verb==='GET'){const row=await db.one('SELECT seq,status,total,payment_status,error FROM site_orders WHERE tracking_token=?',tracking[1]);return row?json({order:{sequential_no:row.seq+5000,status:row.status,total:row.total,payment_status:row.payment_status,error:row.error?'Restaurant review required':null}}):json({error:'Order not found'},404)}
   if(path==='/api/sync/heartbeat'&&verb==='POST'){
     const b=await body(request);if(env.INSTALLATION_ID&&b.installationId!==env.INSTALLATION_ID)fail(403,'Incorrect restaurant installation');
-    await db.batch([put('heartbeat',new Date().toISOString())]);return json({ok:true});
+    await db.batch([put('heartbeat',new Date().toISOString())]);return json({ok:true,catalogRevision:await state(db,'catalog_revision'),staffRevision:await state(db,'staff_revision'),capabilities:['accounts','commands']});
   }
   if(path==='/api/sync/catalog'&&verb==='POST'){
     const b=await body(request,2e6);if(!Array.isArray(b.products)||!Array.isArray(b.categories)||!Array.isArray(b.orderTypes))fail(400,'Invalid catalog');
-    await db.batch([put('catalog',JSON.stringify(b))]);return json({ok:true});
+    await db.batch([put('catalog',JSON.stringify(b)),put('catalog_revision',b.revision||''),put('loyalty_settings',JSON.stringify(b.loyaltySettings||{})),put('loyalty_rewards',JSON.stringify(b.loyaltyRewards||[]))]);return json({ok:true,revision:b.revision||null});
   }
   if(path==='/api/sync/orders/pending'&&verb==='GET')return json({orders:(await db.all("SELECT * FROM site_orders WHERE status='pending' ORDER BY seq LIMIT 100")).map(row=>({id:row.id,sequential_no:row.seq+5000,total:row.total,payload:{...JSON.parse(row.payload),sequential_no:row.seq+5000}}))});
   const ack=path.match(/^\/api\/sync\/orders\/([\w-]+)\/(ack|error)$/);
@@ -106,6 +119,9 @@ async function api(request,env,url){
   if(path==='/api/sync/events'&&verb==='POST'){
     const b=await body(request,2e6),key=text(b.eventKey,200);if(!key)fail(400,'Event key required');if(env.INSTALLATION_ID&&b.installationId!==env.INSTALLATION_ID)fail(403,'Incorrect restaurant installation');
     const writes=[];
+    if(b.entityType==='redemption_commit')writes.push(["UPDATE site_redemptions SET status='committed' WHERE request_key=? AND status='reserved'",b.payload.requestId]);
+    if(b.entityType==='loyalty'){const p=b.payload;if(!p?.id||!p.customer_id||!Number.isInteger(p.delta)||!['earn','refund_reversal','redemption_reversal','manual_adjustment'].includes(p.type))fail(400,'Invalid loyalty event');writes.push(['INSERT OR IGNORE INTO site_loyalty(id,customer_id,order_id,type,delta,idempotency_key,reason,actor,created_at) VALUES(?,?,?,?,?,?,?,?,?)',p.id,p.customer_id,p.order_id||null,p.type,p.delta,p.idempotency_key,p.reason,p.actor||null,p.created_at||new Date().toISOString()]);}
+    if(b.entityType==='customer_order'){const p=b.payload;if(!p?.customer_id||!p.id)fail(400,'Invalid customer order');writes.push(['INSERT INTO site_customer_orders(id,customer_id,payload) SELECT ?,?,? WHERE NOT EXISTS(SELECT 1 FROM site_sync_receipts WHERE event_key=?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=CURRENT_TIMESTAMP',p.id,p.customer_id,JSON.stringify(p),key]);}
     if(b.entityType==='orders'&&b.payload?.id){const row=b.payload,status=row.status==='refunded'?'cancelled':row.fulfillment_status;if(!['pending','accepted','preparing','ready','fulfilled','cancelled'].includes(status))fail(400,'Invalid order status');
       writes.push(['UPDATE site_orders SET status=?,payment_status=? WHERE local_order_id=? AND NOT EXISTS(SELECT 1 FROM site_sync_receipts WHERE event_key=?)',status,text(row.payment_status,30),String(row.id),key]);}
     writes.push(['INSERT OR IGNORE INTO site_sync_receipts(event_key) VALUES(?)',key]);await db.batch(writes);return json({ok:true});
@@ -120,7 +136,7 @@ export default {
       if(url.pathname.startsWith('/api/'))return await api(request,env,url);
       if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);
       if(url.pathname==='/')return Response.redirect(new URL('/customer/',url).href,302);
-      if(!url.pathname.startsWith('/customer/')&&!url.pathname.startsWith('/shared/')&&url.pathname!=='/app/shared.js')return json({error:'Not found'},404);
+      if(!url.pathname.startsWith('/customer/')&&!url.pathname.startsWith('/shared/')&&url.pathname!=='/app/shared.js'&&url.pathname!=='/app/styles.css')return json({error:'Not found'},404);
       const asset=await env.ASSETS.fetch(request),response=new Response(asset.body,asset);
       response.headers.set('X-Content-Type-Options','nosniff');response.headers.set('Referrer-Policy','no-referrer');response.headers.set('X-Frame-Options','DENY');response.headers.set('Cache-Control','public, max-age=60');
       response.headers.set('Content-Security-Policy',"default-src 'self'; img-src 'self' https: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");return response;

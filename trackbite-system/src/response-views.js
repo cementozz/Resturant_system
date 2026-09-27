@@ -1,0 +1,12 @@
+const p=require('./permissions');
+function order(user,o){if(!o)return o;if(user.role==='kitchen')return {id:o.id,sequential_no:o.sequential_no,source:o.source,status:o.status,fulfillment_status:o.fulfillment_status,order_type:o.order_type,notes:o.notes,created_at:o.created_at,items:(o.items||[]).map(i=>({id:i.id,product_id:i.product_id,product_name_ar:i.product_name_ar,product_name_en:i.product_name_en,quantity:i.quantity,notes:i.notes,station_code:i.station_code,modifiers:(i.modifiers||[]).map(m=>({id:m.id,name_ar:m.name_ar,name_en:m.name_en}))}))};if(p.can(user,'customers.pii'))return o;const {customer_id,customer_name,customer_phone,delivery_address,delivery_details,...safe}=o;return safe}
+function customer(user,c){if(!c)return c;const out={id:c.id,member_code:c.member_code,name:c.name};if(p.can(user,'customers.pii'))Object.assign(out,{phone:c.phone,alternative_phone:c.alternative_phone,addresses:c.addresses});if(p.can(user,'reports.sales'))Object.assign(out,{total_spending:c.total_spending,order_count:c.order_count,last_order:c.last_order,orders:c.orders});return out}
+function bootstrap(user,d){const out={loyaltyRewards:p.can(user,'loyalty.read')?require('./loyalty').rewards().filter(r=>r.active):[],permissions:d.permissions,settings:{},orderTypes:[],modifiers:[],wasteReasons:[],categories:[],products:[],paymentMethods:[],locations:[],variants:[],ingredients:[],stations:d.stations};
+ if(p.can(user,'menu.read')){out.categories=d.categories;out.products=d.products;out.modifiers=d.modifiers;out.orderTypes=d.orderTypes}
+ if(user.role==='kitchen'){out.products=d.products.map(x=>({id:x.id,name_ar:x.name_ar,name_en:x.name_en,category_id:x.category_id,station_code:x.station_code}));out.modifiers=d.modifiers.map(x=>({id:x.id,product_id:x.product_id,name_ar:x.name_ar,name_en:x.name_en}));return out}
+ for(const [k,v] of Object.entries(d.settings))if(/^(restaurant_|receipt_|tax_|service_|packaging_|other_)/.test(k)||['currency','delivery_fee','pickup_enabled','delivery_enabled'].includes(k))out.settings[k]=v;
+ if(p.can(user,'pos.sell')||p.can(user,'expenses.read')||p.can(user,'payments.manage'))out.paymentMethods=d.paymentMethods;
+ if(p.can(user,'inventory.read')||p.can(user,'menu.write'))for(const k of ['locations','variants','ingredients','wasteReasons'])out[k]=d[k];
+ return out;
+}
+module.exports={order,customer,bootstrap};

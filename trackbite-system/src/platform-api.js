@@ -2,43 +2,10 @@ const {one,all,run,transaction}=require('./db');
 const p=require('./permissions'),orders=require('./orders'),stock=require('./inventory');
 const {number,money,required}=require('./validation');
 const admin=require('./admin');
-function routePermission(method,path){
- if(path==='/api/public/orders'||path.startsWith('/api/tracking/'))return null;
- if(['/api/status','/api/login','/api/logout','/api/public/menu'].includes(path))return null;
- if(path==='/api/me'||path==='/api/bootstrap')return 'authenticated';
- if(path==='/api/menu/costing')return 'reports.costs';
- if(path.startsWith('/api/menu'))return 'menu.write';
- if(path.startsWith('/api/customers'))return 'orders.read';
- if(path.startsWith('/api/permissions'))return 'users.manage';
- if(path==='/api/orders'&&method==='POST')return 'pos.sell';
- if(path.match(/^\/api\/orders\/[^/]+\/refund$/))return 'orders.refund';
- if(path.match(/^\/api\/orders\/[^/]+\/amend$/))return 'orders.refund';
- if(path.match(/^\/api\/orders\/[^/]+\/fulfill$/))return 'orders.fulfill';
- if(path.match(/^\/api\/orders\/[^/]+\/collect$/))return 'pos.sell';
- if(path.match(/^\/api\/orders\/[^/]+\/reprint$/))return 'printing.use';
- if(path.startsWith('/api/orders'))return 'orders.read';
- if(path.startsWith('/api/shifts'))return 'pos.sell';
- if(path==='/api/stocktake')return 'inventory.adjust';
- if(path.startsWith('/api/inventory')||path.startsWith('/api/production')||path==='/api/stocktakes')return method==='GET'?'inventory.read':'inventory.write';
- if(path.startsWith('/api/purchases')||path.startsWith('/api/suppliers'))return method==='GET'?'purchases.read':'purchases.write';
- if(path.startsWith('/api/expenses'))return method==='GET'?'expenses.read':'expenses.write';
- if(path.includes('reports'))return path.endsWith('/today')?'reports.sales':'reports.costs';
- if(path.startsWith('/api/admin/users'))return 'users.manage';
- if(['/api/admin/ingredients','/api/admin/variants'].includes(path))return 'inventory.write';
- if(path==='/api/admin/recipes'&&method==='GET')return 'inventory.read';
- if(path.startsWith('/api/admin/backup'))return 'backup.manage';
- if(path==='/api/audit')return 'audit.read';
- if(path==='/api/printing/reprint')return 'printing.use';
- if(path.startsWith('/api/printing/jobs')||path==='/api/printing/complete')return 'printing.use';
- if(path.startsWith('/api/print'))return method==='GET'?'printing.use':'settings.manage';
- if(path.startsWith('/api/sync')||path.startsWith('/api/settings'))return 'settings.manage';
- if(path.startsWith('/api/admin'))return 'menu.write';
- return 'authenticated';
-}
 function shiftReport(id){const shift=one('SELECT * FROM shifts WHERE id=?',id);if(!shift)throw new Error('Shift not found');const payments=all(`SELECT m.id,m.code,m.name_ar,m.name_en,COALESCE((SELECT SUM(p.amount) FROM payments p JOIN orders o ON o.id=p.order_id WHERE COALESCE(p.shift_id,o.shift_id)=? AND p.payment_method_id=m.id),0) amount,COALESCE((SELECT SUM(p.amount) FROM refund_payments p JOIN refunds r ON r.id=p.refund_id WHERE r.shift_id=? AND p.payment_method_id=m.id),0) refunds FROM payment_methods m ORDER BY sort_order`,id,id);const cash=payments.find(m=>m.code==='cash');const expenses=one(`SELECT COALESCE(SUM(e.amount),0) total FROM expenses e JOIN payment_methods m ON m.id=e.payment_method_id WHERE e.shift_id=? AND m.code='cash'`,id).total;const expected=money(shift.opening_cash+(cash?.amount||0)-(cash?.refunds||0)-expenses);return {...shift,payments,cashSales:cash?.amount||0,cashRefunds:cash?.refunds||0,cashExpenses:expenses,expectedCash:expected,counted:shift.closing_cash_counted,difference:shift.closing_cash_counted==null?null:money(shift.closing_cash_counted-expected)}}
-function recipeCosts(){return all('SELECT * FROM products WHERE active=1').map(product=>{const recipe=one('SELECT * FROM recipes WHERE product_id=?',product.id);const lines=recipe?all('SELECT r.*,i.name_ar,i.name_en,i.base_unit FROM recipe_lines r JOIN ingredients i ON i.id=r.ingredient_id WHERE recipe_id=?',recipe.id):[];let known=lines.length>0,total=0;for(const l of lines){const c=one(`SELECT SUM(m.quantity_base*m.unit_cost_base)/SUM(m.quantity_base) cost FROM stock_movements m JOIN ingredient_variants v ON v.id=m.variant_id WHERE v.ingredient_id=? ${l.specific_variant_id?'AND v.id=?':''} AND m.quantity_base>0 AND m.unit_cost_base IS NOT NULL AND m.movement_type IN ('purchase','production_output','opening')`,...l.specific_variant_id?[l.ingredient_id,l.specific_variant_id]:[l.ingredient_id]).cost;l.unit_cost=c;l.cost=c==null?null:c*l.quantity_base/recipe.yield_qty;if(c==null)known=false;total+=l.cost||0}return {...product,lines,cost:known?money(total):null,margin:known?money(product.price-total):null,food_cost_percent:known&&product.price?money(total/product.price*100):null}})}
 function analytics(from,to){from=from||new Date().toISOString().slice(0,10);to=to||from;const period="date(o.created_at,'localtime') BETWEEN ? AND ? AND o.status='completed'";const sales=one(`SELECT COUNT(*) orders_count,COALESCE(SUM(total),0) total_sales,COALESCE(SUM(discount),0) discounts FROM orders o WHERE ${period}`,from,to);const hourly=all(`SELECT strftime('%H',o.created_at,'localtime') hour,COUNT(*) orders_count,SUM(total) sales FROM orders o WHERE ${period} GROUP BY hour`,from,to);const categories=all(`SELECT c.name_ar,c.name_en,SUM(i.quantity) quantity,SUM(i.line_total*(CASE WHEN o.subtotal>0 THEN o.total/o.subtotal ELSE 0 END)) sales FROM order_items i JOIN orders o ON o.id=i.order_id JOIN products p ON p.id=i.product_id JOIN categories c ON c.id=p.category_id WHERE ${period} GROUP BY c.id`,from,to);const products=all(`SELECT i.product_id,i.product_name_ar name_ar,i.product_name_en name_en,SUM(i.quantity) quantity,SUM(i.line_total*(CASE WHEN o.subtotal>0 THEN o.total/o.subtotal ELSE 0 END)) sales FROM order_items i JOIN orders o ON o.id=i.order_id WHERE ${period} GROUP BY i.product_id ORDER BY quantity DESC`,from,to);const movements=all(`SELECT m.*,v.name_ar variant_ar,v.name_en variant_en,l.name_ar location_ar,l.name_en location_en FROM stock_movements m JOIN ingredient_variants v ON v.id=m.variant_id JOIN stock_locations l ON l.id=m.location_id WHERE date(m.created_at,'localtime') BETWEEN ? AND ? ORDER BY m.id DESC LIMIT 1000`,from,to);const valuation=stock.stockRows().map(r=>{const lots=stock.allocations({variantId:r.variant_id,locationId:r.location_id,allowExpired:true});let known=true,value=0;for(const l of lots){const c=stock.cost(l.variant_id,l.batch_id);if(c==null)known=false;value+=l.qty*(c||0)}return {...r,value:known?money(value):null}});return {from,to,sales,hourly,categories,products,movements,valuation,costs:require('./costing').products(),profitability:require('./costing').period(from,to),finance:admin.financeReport(from,to),shifts:all('SELECT id FROM shifts ORDER BY id DESC LIMIT 100').map(s=>shiftReport(s.id)),production:all('SELECT * FROM production_batches ORDER BY created_at DESC LIMIT 100'),waste:all('SELECT * FROM waste_records ORDER BY created_at DESC LIMIT 100')}}
 async function handle(req,res,url,user,b,json){const path=url.pathname,method=req.method;const done=data=>{json(res,200,data);return true};
+ if(await require('./reliability-api').handle(req,res,url,user,b,json))return true;
  if(require('./public-order-api').handle(req,res,url,user,b,json))return true;
  if(require('./commercial-api').handle(req,res,url,user,b,json))return true;
  if(await require('./printing/api').handle(req,res,url,user,b,json))return true;
@@ -56,12 +23,11 @@ async function handle(req,res,url,user,b,json){const path=url.pathname,method=re
  if(path==='/api/reports/platform')return done(analytics(url.searchParams.get('from'),url.searchParams.get('to')));
  if(path==='/api/shifts/history')return done({rows:all('SELECT id FROM shifts WHERE user_id=? ORDER BY id DESC LIMIT 100',user.id).map(s=>shiftReport(s.id))});
  if(path==='/api/shifts/close'&&method==='POST'){const sh=one("SELECT * FROM shifts WHERE user_id=? AND status='open'",user.id);if(!sh)throw new Error('No open shift');const counted=number(b.closingCash,'Closing cash',{zero:true});transaction(()=>{run("UPDATE shifts SET status='closed',closed_at=CURRENT_TIMESTAMP,closing_cash_counted=? WHERE id=?",counted,sh.id);p.audit(user,'shift.close','shifts',sh.id,sh,{closingCash:counted})});return done(shiftReport(sh.id))}
- const action=path.match(/^\/api\/orders\/([^/]+)\/(refund|fulfill|collect|reprint)$/);if(action&&method==='POST'){const id=decodeURIComponent(action[1]);if(action[2]==='refund')return done({order:orders.refund(id,b,user)});if(action[2]==='fulfill')return done({order:orders.fulfill(id,b.status,user)});if(action[2]==='collect')return done({order:orders.collect(id,b.payments||[],user)});if(!orders.getOrder(id))throw new Error('Order not found');transaction(()=>{orders.queuePrint(id,true);p.audit(user,'order.reprint','orders',id,null,{reprint:true})});return done({ok:true})}
- if(path==='/api/printing/settings'&&method==='POST'){const width=Number(b.paperWidth);if(![58,80].includes(width))throw new Error('Paper width must be 58 or 80');if(!['browser','windows'].includes(b.printerType))throw new Error('Unsupported printer type');run('UPDATE printer_settings SET name=?,printer_type=?,paper_width=?,active=? WHERE id=?',required(b.name),b.printerType,width,b.active===false?0:1,Number(b.id));p.audit(user,'printer.change','printer_settings',b.id,null,b);return done({ok:true})}
+ const action=path.match(/^\/api\/orders\/([^/]+)\/(refund|fulfill|collect|reprint)$/);if(action&&method==='POST'){const id=decodeURIComponent(action[1]);if(action[2]==='refund')return done({order:orders.refund(id,b,user)});if(action[2]==='fulfill')return done({order:require('./response-views').order(user,orders.fulfill(id,b.status,user))});if(action[2]==='collect')return done({order:orders.collect(id,b.payments||[],user)});if(!orders.getOrder(id))throw new Error('Order not found');transaction(()=>{if(!p.can(user,'customers.pii'))require('./printing/service').enqueue(orders.getOrder(id),{reprint:true,kitchenOnly:true});else orders.queuePrint(id,true);p.audit(user,'order.reprint','orders',id,null,{reprint:true})});return done({ok:true})}
  if(path==='/api/printing/settings')return done({rows:all('SELECT * FROM printer_settings')});
- if(path==='/api/printing/complete'&&method==='POST'){run("UPDATE print_queue SET status='printed',printed_at=CURRENT_TIMESTAMP WHERE id=?",Number(b.jobId));return done({ok:true})}
- if(path==='/api/sync/status')return done({status:require('./sync').getSyncStatus(),pending:one("SELECT COUNT(*) count FROM sync_queue WHERE status='pending'").count,logs:all('SELECT * FROM sync_log ORDER BY id DESC LIMIT 100')});
+ if(path==='/api/printing/complete'&&method==='POST'){if(!p.can(user,'customers.pii')&&one('SELECT job_type FROM print_queue WHERE id=?',Number(b.jobId))?.job_type!=='kitchen'){const e=Error('Kitchen tickets only');e.status=403;throw e}run("UPDATE print_queue SET status='printed',printed_at=CURRENT_TIMESTAMP WHERE id=?",Number(b.jobId));return done({ok:true})}
+ if(path==='/api/sync/status')return done({status:require('./sync').getSyncStatus(),pending:one("SELECT COUNT(*) count FROM sync_queue WHERE status IN ('pending','retrying')").count,failed:all("SELECT id,entity_type,entity_id,attempts,last_error FROM sync_queue WHERE status='dead-letter' ORDER BY id LIMIT 100"),logs:all('SELECT * FROM sync_log ORDER BY id DESC LIMIT 100')});
  if(path==='/api/sync/retry'&&method==='POST')return done(await require('./sync').syncOnce());
  return false;
 }
-module.exports={handle,routePermission,shiftReport,analytics,recipeCosts};
+module.exports={handle,shiftReport,analytics};

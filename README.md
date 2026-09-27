@@ -4,6 +4,8 @@ Arabic-first, bilingual restaurant management and customer ordering platform. In
 
 **Public customer website:** https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/
 
+**0.6 candidate:** security, accounts, loyalty, synchronization and updater changes are in this source version. Activation on the existing live installation requires the [deployment checklist](DEPLOYMENT_CHECKLIST.md); the public URL still runs its previously deployed version.
+
 The configured restaurant computer synchronizes with this hosted website. A fresh GitHub download runs a separate localhost demo until private connection settings are configured. See [public hosting and POS operation](trackbite-system/docs/PUBLIC-HOSTING.md).
 
 ## Run on Windows
@@ -31,12 +33,14 @@ From the repository root, open two terminals:
 ```powershell
 # Terminal 1: customer/cloud service
 cd trackbite-system
+$env:DEMO_MODE = 'true'
 node cloud/server.js
 ```
 
 ```powershell
 # Terminal 2: restaurant/POS service
 cd trackbite-system
+$env:DEMO_MODE = 'true'
 $env:CLOUD_API_URL = 'http://127.0.0.1:5174'
 node server.js
 ```
@@ -47,14 +51,14 @@ For a PostgreSQL cloud database, install the optional `pg` dependency with `npm 
 
 - Arabic RTL and English LTR interfaces, responsive customer storefront.
 - Searchable menu, meal add-ons, favourites, editable cart and delivery/pickup checkout.
-- Live order status, saved browser addresses and order history/reordering.
+- Live order status and account-backed addresses, favourites, history and reordering across devices.
 - Staff roles and permissions, shifts, split payments and audited refunds.
 - Inventory, generic ingredients, branded variants, recipes, batches, transfers, waste and production.
 - Cost/profit estimates, sales reports, customer records and backups.
 - Receipt and kitchen-ticket previews, printer routing and configurable Windows/ESC-POS printing.
 - Transactional synchronization, queued events and duplicate-order protection.
 
-The customer site has a hosted Workers/D1 backend; the POS remains local. Online payment processing, customer accounts, coupons and loyalty are not implemented. Opening hours are informational; food photos are temporary placeholders. Review the [feature checklist](trackbite-system/docs/STOREFRONT.md) and [hosting guide](trackbite-system/docs/PUBLIC-HOSTING.md). The local demo credentials are for the restaurant computer and are not accepted by the public website.
+The customer site has a hosted Workers/D1 backend; the POS remains local. The hosted backend includes customer accounts, shared addresses/favourites/history, immutable loyalty and online reward redemption. Online payment processing, SMS verification and coupons remain unconnected. The Node cloud service is a demo simulator, not the production account service. Opening hours are informational; food photos are temporary placeholders. Review the [feature checklist](trackbite-system/docs/STOREFRONT.md) and [hosting guide](trackbite-system/docs/PUBLIC-HOSTING.md). The local demo credentials are for the restaurant computer and are not accepted by the public website.
 
 ## Tests
 
@@ -69,7 +73,7 @@ cd trackbite-system
 npm test
 ```
 
-The five integration suites use isolated databases and cover POS/inventory, printing, offline synchronization, duplicate prevention and customer checkout.
+The application has five integration suites. From the root, run `npm ci`, `npm run check`, `npm run build`, `npm test`, and `npm run test:browser`. Browser tests use installed Google Chrome on Windows; on Linux first run `npx playwright install --with-deps chromium`. Run `tools/test-updater.ps1` on Windows for the isolated release installer checks. All suites use temporary data. See [exact results](TEST_REPORT.md).
 
 ## Project guide
 

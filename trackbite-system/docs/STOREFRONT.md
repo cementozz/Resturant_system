@@ -15,7 +15,7 @@ The website uses Track Bite branding with a restaurant-chain style ordering expe
 - Restaurant address, phone and opening-hours display from staff Settings → General; directions open Google Maps.
 - FAQ, ingredient/allergen contact guidance, and clear-browser-data control.
 
-Saved favourites, addresses and history are **browser-specific**. This is not a customer login system. Clearing browser storage removes them, while restaurant order records remain.
+In the 0.6 hosted backend, signed-in customers share favourites, addresses, history and points across devices. Guests retain browser-local preferences. Authentication uses HttpOnly cookies; localStorage is not the account source of truth. The local Node demo has guest functionality only. The live public deployment remains the earlier version until authorized activation.
 
 ## Remaining work for a full chain platform
 
@@ -24,8 +24,8 @@ Public hosting and the managed order database are implemented; see [PUBLIC-HOSTI
 | Feature | What is needed |
 | --- | --- |
 | Online card/wallet payment | Chosen payment provider account, server payment integration, verified webhook settlement and refunds |
-| Customer accounts / SMS verification | Customer authentication, recovery flow and an SMS or email provider |
-| Coupons and loyalty rewards | Offer/points rules, redemption ledger and staff management workflows |
+| SMS / OTP delivery | A real provider integration; password accounts and owner-assisted recovery are implemented |
+| Coupon codes | Separate campaign rules; ledger-based loyalty and rewards are implemented in the hosted backend |
 | Multiple branches / delivery zones | Real branch and delivery-area data plus routing and availability rules |
 | Scheduled orders / live driver map | Hours/capacity rules, scheduling backend and delivery integration |
 | Nutrition and allergen listings | Verified data for the restaurant’s actual recipes |

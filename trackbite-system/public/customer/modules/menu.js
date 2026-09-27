@@ -1,7 +1,9 @@
-import {shop,$,$$,t,esc,name,money,toast,safe,dialog,input,product,method,linePrice,subtotal,itemCount,addLine,changed,save,imageFor,description,icon} from './core.js';
+import '/shared/loyalty.js';
+import {shop,$,$$,t,esc,name,money,toast,safe,request,dialog,input,product,method,linePrice,subtotal,itemCount,addLine,changed,save,imageFor,description,icon} from './core.js';
 import '/shared/pricing.js';
 
-export function totals(){return globalThis.TrackBitePricing.calculate({subtotal:subtotal(),deliveryFee:method()?.requires_delivery?Number(shop.catalog.settings.delivery_fee||0):0,settings:shop.catalog.settings})}
+function rewardDiscount(){if(!shop.reward)return 0;try{return globalThis.TrackBiteLoyalty.discount(shop.reward,shop.cart.map(x=>({...x,price:linePrice(x)})),subtotal())}catch{return 0}}
+export function totals(){return globalThis.TrackBitePricing.calculate({subtotal:subtotal(),discount:rewardDiscount(),deliveryFee:method()?.requires_delivery?Number(shop.catalog.settings.delivery_fee||0):0,settings:shop.catalog.settings})}
 export function priceSummary(p=totals()){return `<div class="price-breakdown">${[['subtotal','الأصناف','Subtotal'],['discount','الخصم','Discount'],['service','الخدمة','Service'],['tax','الضريبة','Tax'],['packaging','التغليف','Packaging'],['other','رسوم أخرى','Other charges'],['delivery','التوصيل','Delivery'],['total','الإجمالي','Total']].filter(([key])=>p[key]||key==='total'||key==='subtotal').map(([key,ar,en])=>`<div class="split ${key==='total'?'grand-total':''}"><span>${t(ar,en)}</span><strong>${key==='discount'?'−':''}${money(p[key])}</strong></div>`).join('')}</div>`}
 export const validLine=x=>product(x.productId)&&Number.isInteger(x.qty)&&x.qty>0&&x.qty<=99&&(x.modifiers||[]).every(id=>shop.catalog.modifiers.some(m=>m.id===id&&m.product_id===x.productId));
 export function bindImages(root=document){$$('img',root).forEach(img=>img.onerror=()=>{img.onerror=null;img.src='/customer/assets/brand.svg'})}
@@ -16,7 +18,7 @@ export function renderMenu(){
   $('#clearSearch').hidden=!shop.query;
   $('#webProducts').innerHTML=rows.length?rows.map(p=>`<article class="product"><button class="favorite ${shop.favorites.includes(p.id)?'selected':''}" data-favorite="${p.id}" aria-pressed="${shop.favorites.includes(p.id)}" aria-label="${esc(t('المفضلة: ','Favourite: ')+name(p))}">${icon('heart')}</button><button class="product-visual" data-product="${p.id}" aria-label="${esc(name(p))}"><img src="${esc(imageFor(p))}" alt="${esc(name(p))}" loading="lazy" width="400" height="400"></button><div class="product-info"><h3>${esc(name(p))}</h3><p>${esc(description(p)||t('اختار إضافاتك وخليه على مزاجك.','Your favourites, your way.'))}</p><div class="product-bottom"><b>${money(p.price)}</b><button class="add-button" data-product="${p.id}">${t('أضف للطلب','Add to order')} +</button></div></div></article>`).join(''):`<div class="empty">${icon(shop.category==='favorites'?'heart':'search')}<strong>${t('لا توجد أصناف هنا بعد','Nothing here yet')}</strong><p>${shop.category==='favorites'?t('اضغط على القلب لحفظ اختياراتك المفضلة.','Tap a heart to save your favourites.'):t('جرب البحث باسم آخر أو اختار كل القائمة.','Try another search or explore the full menu.')}</p><button id="resetMenu">${t('كل القائمة','Full menu')}</button></div>`;
   $$('[data-product]').forEach(b=>b.onclick=safe(()=>customize(Number(b.dataset.product))));
-  $$('[data-favorite]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.favorite);shop.favorites=shop.favorites.includes(id)?shop.favorites.filter(x=>x!==id):[...shop.favorites,id];save('tb_favorites',shop.favorites);renderMenu()});
+  $$('[data-favorite]').forEach(b=>b.onclick=safe(async()=>{const id=Number(b.dataset.favorite);if(shop.account)await request('/api/account/favourites',{productId:id,saved:!shop.favorites.includes(id)});shop.favorites=shop.favorites.includes(id)?shop.favorites.filter(x=>x!==id):[...shop.favorites,id];if(!shop.account)save('tb_favorites',shop.favorites);renderMenu()}));
   if($('#resetMenu'))$('#resetMenu').onclick=()=>{shop.category='';shop.query='';$('#webSearch').value='';renderMenu()};bindImages($('#webProducts'));
 }
 

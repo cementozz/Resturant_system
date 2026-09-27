@@ -1,3 +1,4 @@
+process.env.DEMO_MODE='true';
 const {spawn}=require('child_process');const fs=require('fs');const path=require('path');
 const root=path.join(__dirname,'..'),localDb=path.join(__dirname,'sync-local.db'),cloudDb=path.join(__dirname,'sync-cloud.db');
 for(const f of [localDb,cloudDb])for(const s of ['','-wal','-shm'])try{fs.unlinkSync(f+s)}catch{}
@@ -11,7 +12,7 @@ async function j(base,url,opt={}){const r=await fetch(base+url,opt);const d=awai
  await sleep(900);
  const cloudStatus=await j('http://127.0.0.1:5193','/api/status');if(!cloudStatus.restaurantOnline)throw new Error('Cloud did not receive restaurant heartbeat');
  const menu=await j('http://127.0.0.1:5193','/api/public/menu');if(!menu.products?.length)throw new Error('Catalog not synchronized');
- const web=await j('http://127.0.0.1:5193','/api/orders',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items:[{productId:1,qty:1}],customerName:'Cloud Customer'})});
+ const web=await j('http://127.0.0.1:5193','/api/orders',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items:[{productId:1,qty:1}],customerName:'Cloud Customer',customerPhone:'01012345678',requestId:require('crypto').randomUUID(),expectedTotal:150})});
  await sleep(900);
  const login=await j('http://127.0.0.1:4193','/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:'owner',password:'1234'})});
  const list=await j('http://127.0.0.1:4193','/api/orders',{headers:{authorization:'Bearer '+login.token}});const imported=list.orders.find(x=>x.source==='web');if(!imported)throw new Error('Cloud web order not imported to restaurant');
