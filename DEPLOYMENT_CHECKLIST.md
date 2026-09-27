@@ -1,6 +1,6 @@
 # Activate the 0.6 candidate
 
-The source changes are tested locally. They have not been deployed to the public site, installed as an approved GitHub Release, or activated against the restaurant database. The user's phase 24 requires explicit deployment authorization after local checks pass.
+This is the activation procedure. The user subsequently authorized production activation; see DEPLOYMENT_STATUS.md for the completed deployment, verification results and remaining live-transaction acceptance gate. No approved GitHub Release was published automatically.
 
 ## Before activation
 

@@ -51,6 +51,12 @@ GitHub CI initially passed Windows updater and all Linux build/integration steps
 
 CI is configured for Ubuntu application/build/Worker/browser checks and Windows updater checks. Local results do not themselves prove remote GitHub CI passed; consult the PR's check results for that separate run. Do not merge while required checks fail.
 
-The actual hosted 0.6 rollout/smoke test is pending the explicit authorization required by phase 24. Physical thermal printers, Arabic raster output on actual hardware, Windows spoolers and a real cash drawer have not been certified. Existing tests simulate transport/queue behavior. Use HARDWARE_ACCEPTANCE.md.
+At the end of initial development, hosted rollout was pending phase 24 authorization. The later activation and remaining transactional test gate are recorded below. Physical thermal printers, Arabic raster output on actual hardware, Windows spoolers and a real cash drawer have not been certified. Existing tests simulate transport/queue behavior. Use HARDWARE_ACCEPTANCE.md.
 
 No GitHub Release package has been published or installed on the restaurant PC. Updater network/service operations are mocked in disposable Windows workspaces. Historical-database compatibility must be reviewed before approving a real release. See DEPLOYMENT_CHECKLIST.md.
+
+## Authorized production activation
+
+GitHub CI run 36356782944 passed both Ubuntu verification (including browser E2E) and Windows updater checks for deployed commit 784bd63. After explicit user authorization, Sites version 2 and the paired POS were activated. The post-deployment read-only browser/API checks passed with zero console/page errors, matching catalog revisions, healthy synchronization, all six strong staff logins and preserved existing operational records. See DEPLOYMENT_STATUS.md.
+
+Automatic approval review blocked the proposed live test account/order/payment/stock/loyalty transaction; that script did not run. End-to-end live transaction verification therefore remains pending explicit authorization. Isolated transaction tests passed and do not substitute for that hosted acceptance gate.

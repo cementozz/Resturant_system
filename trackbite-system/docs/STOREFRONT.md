@@ -15,7 +15,7 @@ The website uses Track Bite branding with a restaurant-chain style ordering expe
 - Restaurant address, phone and opening-hours display from staff Settings → General; directions open Google Maps.
 - FAQ, ingredient/allergen contact guidance, and clear-browser-data control.
 
-In the 0.6 hosted backend, signed-in customers share favourites, addresses, history and points across devices. Guests retain browser-local preferences. Authentication uses HttpOnly cookies; localStorage is not the account source of truth. The local Node demo has guest functionality only. The live public deployment remains the earlier version until authorized activation.
+In the 0.6 hosted backend, signed-in customers share favourites, addresses, history and points across devices. Guests retain browser-local preferences. Authentication uses HttpOnly cookies; localStorage is not the account source of truth. The local Node demo has guest functionality only. The live public deployment was activated after authorization; see ../../DEPLOYMENT_STATUS.md.
 
 ## Remaining work for a full chain platform
 

@@ -3,7 +3,7 @@
 **Double-click `01_START_WEBSITE.bat` to run the customer website.**
 **اضغط مرتين على `01_START_WEBSITE.bat` لتشغيل موقع الطلبات.**
 
-**Before activating this 0.6 source on the existing restaurant, follow [DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md). Production requires strong staff passwords; the previous public version has not been replaced by these source changes.**
+**Version 0.6 is activated on the existing restaurant and public site. See [deployment status](DEPLOYMENT_STATUS.md). Strong staff credentials are saved privately on this PC in `.runtime/access/PRODUCTION-LOGINS.txt`; `1234` is demo-only.**
 
 On the original development computer, no installation is needed because a portable Node runtime is available in `.runtime`. For a fresh GitHub download, install Node.js 22.5 or newer first and make sure `node` is on PATH. The portable runtime, local databases and logs are not uploaded to GitHub; the application creates a fresh demo database on first run.
 
