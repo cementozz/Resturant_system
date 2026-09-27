@@ -9,10 +9,25 @@ if(-not $node){$node=(Get-Command node -ErrorAction SilentlyContinue).Source}
 if(-not $node){throw 'Node.js is missing. Install Node.js 22.5 or later, then run this launcher again.'}
 $version=& $node -p 'process.versions.node'
 if([version]$version -lt [version]'22.5.0'){throw 'Node.js 22.5 or later is required. Upgrade Node.js, then run this launcher again.'}
-if(-not $env:SYNC_SECRET){$env:SYNC_SECRET='trackbite-dev-secret'}
-$env:CLOUD_API_URL='http://127.0.0.1:5174'
+$connectionFile=Join-Path $runtime 'public-cloud.json'
+$website='http://127.0.0.1:5174/customer/'
+$services=@(@{Name='cloud';Script='cloud/server.js';Port=5174},@{Name='restaurant';Script='server.js';Port=4173})
+if(Test-Path -LiteralPath $connectionFile){
+  $connection=Get-Content -Raw -LiteralPath $connectionFile | ConvertFrom-Json
+  $cloudUri=[uri]$connection.cloudUrl
+  if($cloudUri.Scheme -ne 'https' -or $cloudUri.UserInfo -or -not $cloudUri.Host){throw 'The public website must have a valid HTTPS address.'}
+  if(-not $connection.syncSecret -or $connection.syncSecret.Length -lt 32){throw 'The public website connection key is missing or invalid.'}
+  $env:CLOUD_API_URL=$connection.cloudUrl.TrimEnd('/')
+  $env:SYNC_SECRET=$connection.syncSecret
+  $env:SYNC_TIMEOUT_MS='15000'
+  $website=$env:CLOUD_API_URL+'/customer/'
+  $services=@(@{Name='restaurant';Script='server.js';Port=4173})
+}else{
+  if(-not $env:SYNC_SECRET){$env:SYNC_SECRET='trackbite-dev-secret'}
+  $env:CLOUD_API_URL='http://127.0.0.1:5174'
+}
 $env:HOST='127.0.0.1';$env:CLOUD_HOST='127.0.0.1';$env:PORT='4173';$env:CLOUD_PORT='5174'
-foreach($service in @(@{Name='cloud';Script='cloud/server.js';Port=5174},@{Name='restaurant';Script='server.js';Port=4173})){
+foreach($service in $services){
   $url="http://127.0.0.1:$($service.Port)/api/status"
   $status=$null
   try{$status=Invoke-RestMethod $url -TimeoutSec 2}catch{}
@@ -35,10 +50,10 @@ foreach($service in @(@{Name='cloud';Script='cloud/server.js';Port=5174},@{Name=
   if(-not $ready){throw "$($service.Name) did not start. Read .runtime/$($service.Name).error.log."}
 }
 Write-Host ''
-Write-Host 'CUSTOMER WEBSITE: http://127.0.0.1:5174/customer/' -ForegroundColor Green
+Write-Host "CUSTOMER WEBSITE: $website" -ForegroundColor Green
 Write-Host 'STAFF / POS:      http://127.0.0.1:4173/pos/' -ForegroundColor Green
 Write-Host 'LOCAL WEBSITE:    http://127.0.0.1:4173/customer/'
 Write-Host 'Demo staff login: owner / 1234'
-foreach($url in @($(if($Open -in @('website','all')){'http://127.0.0.1:5174/customer/'}),$(if($Open -in @('pos','all')){'http://127.0.0.1:4173/pos/'}))){
+foreach($url in @($(if($Open -in @('website','all')){$website}),$(if($Open -in @('pos','all')){'http://127.0.0.1:4173/pos/'}))){
   if($url){try{Start-Process $url}catch{Write-Host "The browser could not open automatically. Open this link manually: $url" -ForegroundColor Yellow}}
 }

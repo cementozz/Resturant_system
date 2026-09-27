@@ -2,6 +2,10 @@
 
 Arabic-first, bilingual restaurant management and customer ordering platform. Includes a local POS, inventory and recipes, customer records, reporting, receipt and kitchen-ticket printing, and a separate customer-ordering service with synchronization.
 
+**Public customer website:** https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/
+
+The configured restaurant computer synchronizes with this hosted website. A fresh GitHub download runs a separate localhost demo until private connection settings are configured. See [public hosting and POS operation](trackbite-system/docs/PUBLIC-HOSTING.md).
+
 ## Run on Windows
 
 1. Install **Node.js 22.5 or newer** and make sure `node` is available on PATH. The development computer already has a portable runtime, but that machine-specific runtime is not included in GitHub.
@@ -50,7 +54,7 @@ For a PostgreSQL cloud database, install the optional `pg` dependency with `npm 
 - Receipt and kitchen-ticket previews, printer routing and configurable Windows/ESC-POS printing.
 - Transactional synchronization, queued events and duplicate-order protection.
 
-This is a local development/demo system. Public hosting, online payment processing, customer accounts, coupons and loyalty are not implemented. Opening hours are informational; food photos are temporary placeholders. Review the [feature and deployment checklist](trackbite-system/docs/STOREFRONT.md). Change demo credentials and development secrets before any production deployment.
+The customer site has a hosted Workers/D1 backend; the POS remains local. Online payment processing, customer accounts, coupons and loyalty are not implemented. Opening hours are informational; food photos are temporary placeholders. Review the [feature checklist](trackbite-system/docs/STOREFRONT.md) and [hosting guide](trackbite-system/docs/PUBLIC-HOSTING.md). The local demo credentials are for the restaurant computer and are not accepted by the public website.
 
 ## Tests
 

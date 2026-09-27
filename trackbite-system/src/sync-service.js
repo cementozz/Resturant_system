@@ -1,7 +1,7 @@
 const {all,one,run,transaction}=require('./db');
 const orders=require('./orders');
 let timer=null,inFlight=null,status={enabled:false,online:false,lastSuccess:null,lastError:null};
-async function request(base,path,opt={}){const r=await fetch(base+path,{...opt,signal:AbortSignal.timeout(5000),headers:{'content-type':'application/json','x-sync-secret':process.env.SYNC_SECRET||'trackbite-dev-secret',...(opt.headers||{})}});const d=await r.json();if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d}
+async function request(base,path,opt={}){const r=await fetch(base+path,{...opt,signal:AbortSignal.timeout(Math.max(5000,Number(process.env.SYNC_TIMEOUT_MS)||15000)),headers:{'content-type':'application/json','x-sync-secret':process.env.SYNC_SECRET||'trackbite-dev-secret',...(opt.headers||{})}});const d=await r.json();if(!r.ok)throw new Error(d.error||`HTTP ${r.status}`);return d}
 async function perform(){const base=(process.env.CLOUD_API_URL||'').replace(/\/$/,'');if(!base)return status={...status,enabled:false};status.enabled=true;try{
  const installationId=one("SELECT value FROM settings WHERE key='installation_id'").value;
  await request(base,'/api/sync/heartbeat',{method:'POST',body:JSON.stringify({installationId})});

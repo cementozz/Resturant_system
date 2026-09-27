@@ -30,3 +30,7 @@ trackbite-system/tests/storefront-*/
 Thumbs.db
 .DS_Store
 desktop.ini
+dist/
+.wrangler/
+.dev.vars*
+.openai/*credential*

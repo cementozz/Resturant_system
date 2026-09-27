@@ -19,11 +19,10 @@ Saved favourites, addresses and history are **browser-specific**. This is not a 
 
 ## Remaining work for a full chain platform
 
-These are not implemented or connected, and are not represented as working website controls:
+Public hosting and the managed order database are implemented; see [PUBLIC-HOSTING.md](PUBLIC-HOSTING.md). The following features are not implemented or connected, and are not represented as working website controls:
 
 | Feature | What is needed |
 | --- | --- |
-| Public internet link | Hosting, production database, domain, HTTPS, production secrets and operational monitoring |
 | Online card/wallet payment | Chosen payment provider account, server payment integration, verified webhook settlement and refunds |
 | Customer accounts / SMS verification | Customer authentication, recovery flow and an SMS or email provider |
 | Coupons and loyalty rewards | Offer/points rules, redemption ledger and staff management workflows |

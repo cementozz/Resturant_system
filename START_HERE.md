@@ -12,13 +12,14 @@ On the original development computer, no installation is needed because a portab
 | `03_STOP_TRACK_BITE.bat` | Stops services started by the launcher; keeps data / إيقاف النظام مع حفظ البيانات |
 | `04_CHECK_SYSTEM.bat` | Checks runtime, services, and menu connection / فحص التشغيل |
 
-Website: http://127.0.0.1:5174/customer/  
+Public website: https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/  
+Local demo website: http://127.0.0.1:5174/customer/  
 Staff/POS: http://127.0.0.1:4173/pos/  
 Local website: http://127.0.0.1:4173/customer/
 
 Demo staff login: **owner** / **1234**.
 
-These links work on this computer while the services are running. A public internet address needs hosting and a domain. Do not open HTML files directly: use the launchers so ordering and the databases work.
+The public website is accessible from other devices. Keep the configured restaurant computer awake, online and running the POS to receive website orders. Localhost links only work on this computer while the services are running. Do not open HTML files directly: use the launchers so ordering and databases work. See [the public hosting guide](trackbite-system/docs/PUBLIC-HOSTING.md).
 
 ## Where files live
 
