@@ -89,7 +89,7 @@ require('./commercial-migration')(db);
 require('./printing/migration')(db);
 require('./settlement-migration')(db);
 require('./compatibility-migration')(db);
-require('./sync-migration')(db);
+require('./daily-orders-migration')(db,dbPath);
 require('./reliability-migration')(db,dbPath);
 require('./loyalty-migration')(db,dbPath);
 

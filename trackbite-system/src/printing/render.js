@@ -3,7 +3,7 @@ function document(job,printer={}){const o=typeof job.payload==='string'?JSON.par
  push(n(settings.restaurant_name_ar||'تراك بايت',settings.restaurant_name_en||'TRACK BITE'),18,true);
  if(job.reprint)push('*** '+t('إعادة طباعة','REPRINT')+' ***',18,true);
  const kind={refund:['استرداد كامل','FULL REFUND'],updated:['فاتورة معدلة','UPDATED RECEIPT'],addition:['إضافة','ADDITION'],cancel_item:['إلغاء صنف','CANCEL ITEM'],cancel_order:['إلغاء الطلب','CANCEL ORDER']}[job.document_kind];if(kind)push('*** '+t(...kind)+' ***',20,true);
- push(t('طلب رقم','ORDER')+' #'+o.sequential_no,kitchen?26:19,true);if(kitchen)push(t('تذكرة المطبخ','KITCHEN TICKET')+' · '+(job.station_code||''),14,true);
+ push(t('طلب رقم','ORDER')+' #'+(o.daily_no||o.sequential_no),kitchen?26:19,true);if(kitchen)push(t('تذكرة المطبخ','KITCHEN TICKET')+' · '+(job.station_code||''),14,true);
  push(o.created_at||new Date().toISOString(),11);push(n(o.orderType?.name_ar||o.order_type,o.orderType?.name_en||o.order_type),15,true);
  if(o.cashier)push(t('الكاشير: ','Cashier: ')+n(o.cashier.display_name_ar,o.cashier.display_name_en),11);
  const separator='--------------------------------';push(separator,10);

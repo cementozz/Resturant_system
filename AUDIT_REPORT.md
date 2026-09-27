@@ -35,7 +35,7 @@ Application `npm test`: all five suites passed. Root `npm ci`, `npm run build`, 
 
 | ID | Severity | Cause / affected module | Fix and evidence |
 |---|---|---|---|
-| A21 | High | Sync migration reused commercial migration version 4 and could silently skip synchronization setup | Unique version 8; fresh and legacy upgrade tests reach versions 3 through 10 |
+| A21 | High | Sync migration reused commercial migration version 4 and could silently skip synchronization setup | Retire superseded legacy sync migration; explicit projection migration 9 replaces it. Preserve upstream daily-number migration 8; fresh and legacy upgrade tests reach versions 3 through 10 |
 | A22 | Medium | Browser phone input used a character-class pattern rejected by current Chromium | Valid phone pattern; customer desktop/mobile checkout passes without console errors |
 | A23 | High | Guest phone matching could attach a stranger's order to an authenticated account | UUID-first identity and explicit audited legacy linking; linked identities cannot be claimed by anonymous phone matching |
 | A24 | Medium | Missing cloud catalog after reset could retain a locally acknowledged revision | Compare heartbeat cloud revision, including missing revision; republish on mismatch |
@@ -47,6 +47,8 @@ Application `npm test`: all five suites passed. Root `npm ci`, `npm run build`, 
 | A30 | Medium | Fresh CI checkout has no ignored runtime directory | Isolated test entry points create their own runtime parent; no portable runtime dependency on CI |
 | A31 | Medium | New customer attachment UI initially used a single selector as a collection | Fixed during development; POS browser attaches customer and completes split payment |
 | A32 | Low | Browser tests raced remote portal refresh and used an invalid numeric attribute selector | Await refresh response; quote selector. Final flows verify remote price/item/reward and local recipe changes |
+
+The final branch also incorporates upstream `a64e13c` and `3b3bdbb`: daily order numbers, print-center changes and removal of inactive menu items from costing lists. Daily numbering uses the restaurant timezone, includes Kitchen responses, and migration 8 creates a verified backup before changing existing orders.
 
 ## Verification scope and operating limits
 
