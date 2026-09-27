@@ -45,6 +45,8 @@ Phone-pattern browser errors, collection-selector customer attachment errors, a 
 
 PowerShell blocks npm.ps1 under the machine policy; npm.cmd is used for direct npm commands. The Node SQLite experimental warning is expected runtime output, not a browser console error or a failing assertion.
 
+GitHub CI initially passed Windows updater and all Linux build/integration steps, then exposed a stock-form test timing race. The browser helper now waits for the submitted form to disappear after refresh instead of relying on a 150 ms delay.
+
 ## Boundaries
 
 CI is configured for Ubuntu application/build/Worker/browser checks and Windows updater checks. Local results do not themselves prove remote GitHub CI passed; consult the PR's check results for that separate run. Do not merge while required checks fail.
