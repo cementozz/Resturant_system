@@ -28,6 +28,32 @@ function bodyJson(req){return req.bodyPromise ||= new Promise((resolve,reject)=>
 function session(req){return auth.getSession(req)}
 function requireUser(req,res){const u=session(req);if(!u){json(res,401,{error:'Unauthorized'});return null}return u}
 function audit(userId,action,entityType,entityId,newValue=null,reason=null){const context=requestContext.getStore()||{};const clean=newValue?{...newValue}:null;if(clean){delete clean.approval;delete clean.managerPassword}run('INSERT INTO audit_log(user_id,action,entity_type,entity_id,new_value,reason,approved_by) VALUES(?,?,?,?,?,?,?)',userId,action,entityType,entityId,clean?JSON.stringify(clean):null,reason||context.reason||null,context.approvedBy||null)}
+function kitchenOrderView(order){
+  const items=(order.items||order.order_items||[]).map(item=>({
+    id:item.id,
+    product_id:item.product_id,
+    product_name_ar:item.product_name_ar,
+    product_name_en:item.product_name_en,
+    quantity:item.quantity,
+    modifiers:item.modifiers||[],
+    notes:item.notes||null,
+    station_code:item.station_code||null
+  }));
+  return {
+    id:order.id,
+    sequential_no:order.sequential_no,
+    source:order.source,
+    status:order.status,
+    fulfillment_status:order.fulfillment_status,
+    order_type:order.order_type,
+    customer_name:order.customer_name,
+    notes:order.notes||null,
+    created_at:order.created_at,
+    items
+  };
+}
+
+function roleOrderView(user,order){return user?.role==='kitchen'?kitchenOrderView(order):order}
 
 function api(req,res,url){return requestContext.run({},()=>apiRequest(req,res,url))}
 async function apiRequest(req,res,url){
@@ -39,8 +65,8 @@ async function apiRequest(req,res,url){
     if(await platform.handle(req,res,url,user,payload,json))return;
     if(req.method==='GET' && url.pathname==='/api/status') return json(res,200,{ok:true,restaurant:one("SELECT value FROM settings WHERE key='restaurant_name_en'")?.value||'Track Bite',time:new Date().toISOString(),db:dbPath,sync:sync.getSyncStatus()});
     if(req.method==='POST' && url.pathname==='/api/login'){
-      const b=await bodyJson(req); const u=one('SELECT * FROM users WHERE username=? AND active=1',String(b.username||''));
-      if(!u||!auth.verifyPassword(String(b.password||''),u.password_hash)) return json(res,401,{error:'Invalid username or password'});
+      const b=await bodyJson(req); const username=String(b.username||'').trim(); const password=String(b.password||'').trim(); const u=one('SELECT * FROM users WHERE username=? AND active=1',username);
+      if(!u||!auth.verifyPassword(password,u.password_hash)) return json(res,401,{error:'Invalid username or password'});
       const token=auth.createSession(u); return json(res,200,{token,user:{id:u.id,username:u.username,role:u.role,display_name_ar:u.display_name_ar,display_name_en:u.display_name_en}});
     }
     if(req.method==='POST' && url.pathname==='/api/logout'){auth.logout(req);return json(res,200,{ok:true})}
@@ -104,8 +130,8 @@ async function apiRequest(req,res,url){
       const order=orders.createOrder({source:isWeb?'web':'pos',userId:u.id,shiftId,customerName:b.customerName||null,customerPhone:b.customerPhone||null,orderType:b.orderType||'pickup',items:b.items||[],payments:b.payments||[],notes:b.notes||null,requestId:b.requestId||null,discount:b.discount||0,deliveryAddress:b.deliveryAddress||null,deliveryDetails:b.deliveryDetails||{},deliveryFee:b.deliveryFee||0});
       if(!isWeb)audit(u.id,'order_create','order',order.id,{total:order.total}); return json(res,201,{order});
     }
-    if(req.method==='GET' && url.pathname==='/api/orders'){const u=requireUser(req,res); if(!u)return; return json(res,200,{orders:orders.listOrders(Number(url.searchParams.get('limit')||100),Object.fromEntries(url.searchParams))})}
-    if(req.method==='GET' && url.pathname.startsWith('/api/orders/')){const u=requireUser(req,res); if(!u)return; const id=decodeURIComponent(url.pathname.split('/').pop()); const o=orders.getOrder(id); return o?json(res,200,{order:o}):json(res,404,{error:'Not found'})}
+    if(req.method==='GET' && url.pathname==='/api/orders'){const u=requireUser(req,res); if(!u)return; const rows=orders.listOrders(Number(url.searchParams.get('limit')||100),Object.fromEntries(url.searchParams)); return json(res,200,{orders:u.role==='kitchen'?rows.map(kitchenOrderView):rows})}
+    if(req.method==='GET' && url.pathname.startsWith('/api/orders/')){const u=requireUser(req,res); if(!u)return; const id=decodeURIComponent(url.pathname.split('/').pop()); const o=orders.getOrder(id); return o?json(res,200,{order:roleOrderView(u,o)}):json(res,404,{error:'Not found'})}
 
 
     if(req.method==='GET' && url.pathname==='/api/suppliers'){

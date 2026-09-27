@@ -88,5 +88,6 @@ require('./commercial-migration')(db);
 require('./printing/migration')(db);
 require('./settlement-migration')(db);
 require('./compatibility-migration')(db);
+require('./sync-migration')(db);
 
 module.exports = { db, one, all, run, transaction, dbPath };
