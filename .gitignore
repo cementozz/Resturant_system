@@ -1,0 +1,32 @@
+# Machine-specific runtime, browser profiles, logs and development artifacts
+/.runtime/
+/node_modules/
+**/node_modules/
+*.log
+*.process.json
+
+# Restaurant/customer data and backups are local, never source code
+**/data/
+**/backups/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-journal
+
+# Local credentials and environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+
+# Interrupted test runs and operating-system files
+trackbite-system/tests/platform-*/
+trackbite-system/tests/resilience-*/
+trackbite-system/tests/storefront-*/
+Thumbs.db
+.DS_Store
+desktop.ini

@@ -1,0 +1,57 @@
+import {shop,$,$$,t,esc,name,money,toast,safe,dialog,input,product,method,linePrice,subtotal,itemCount,addLine,changed,save,imageFor,description,icon} from './core.js';
+import '/shared/pricing.js';
+
+export function totals(){return globalThis.TrackBitePricing.calculate({subtotal:subtotal(),deliveryFee:method()?.requires_delivery?Number(shop.catalog.settings.delivery_fee||0):0,settings:shop.catalog.settings})}
+export function priceSummary(p=totals()){return `<div class="price-breakdown">${[['subtotal','الأصناف','Subtotal'],['discount','الخصم','Discount'],['service','الخدمة','Service'],['tax','الضريبة','Tax'],['packaging','التغليف','Packaging'],['other','رسوم أخرى','Other charges'],['delivery','التوصيل','Delivery'],['total','الإجمالي','Total']].filter(([key])=>p[key]||key==='total'||key==='subtotal').map(([key,ar,en])=>`<div class="split ${key==='total'?'grand-total':''}"><span>${t(ar,en)}</span><strong>${key==='discount'?'−':''}${money(p[key])}</strong></div>`).join('')}</div>`}
+export const validLine=x=>product(x.productId)&&Number.isInteger(x.qty)&&x.qty>0&&x.qty<=99&&(x.modifiers||[]).every(id=>shop.catalog.modifiers.some(m=>m.id===id&&m.product_id===x.productId));
+export function bindImages(root=document){$$('img',root).forEach(img=>img.onerror=()=>{img.onerror=null;img.src='/customer/assets/brand.svg'})}
+
+export function renderMenu(){
+  const categories=shop.catalog.categories.filter(c=>shop.catalog.products.some(p=>p.category_id===c.id));
+  $('#webCategories').innerHTML=[{id:'',name_ar:'كل القائمة',name_en:'Full menu'},...categories,{id:'favorites',name_ar:'المفضلة',name_en:'Favourites'}].map(c=>`<button data-cat="${c.id}" class="${String(c.id)===String(shop.category)?'active':''}" aria-pressed="${String(c.id)===String(shop.category)}">${c.id==='favorites'?icon('heart'):''} ${esc(name(c))}</button>`).join('');
+  $$('[data-cat]').forEach(b=>b.onclick=()=>{shop.category=b.dataset.cat;renderMenu()});
+  let rows=shop.catalog.products.filter(p=>(shop.category==='favorites'?shop.favorites.includes(p.id):!shop.category||p.category_id===Number(shop.category))&&`${p.name_ar} ${p.name_en} ${description(p)}`.toLowerCase().includes(shop.query));
+  if(shop.sort==='low')rows.sort((a,b)=>a.price-b.price);if(shop.sort==='high')rows.sort((a,b)=>b.price-a.price);if(shop.sort==='name')rows.sort((a,b)=>name(a).localeCompare(name(b)));
+  $('#resultCount').textContent=t(`${rows.length} اختيارات على مزاجك`,`${rows.length} things to love`);
+  $('#clearSearch').hidden=!shop.query;
+  $('#webProducts').innerHTML=rows.length?rows.map(p=>`<article class="product"><button class="favorite ${shop.favorites.includes(p.id)?'selected':''}" data-favorite="${p.id}" aria-pressed="${shop.favorites.includes(p.id)}" aria-label="${esc(t('المفضلة: ','Favourite: ')+name(p))}">${icon('heart')}</button><button class="product-visual" data-product="${p.id}" aria-label="${esc(name(p))}"><img src="${esc(imageFor(p))}" alt="${esc(name(p))}" loading="lazy" width="400" height="400"></button><div class="product-info"><h3>${esc(name(p))}</h3><p>${esc(description(p)||t('اختار إضافاتك وخليه على مزاجك.','Your favourites, your way.'))}</p><div class="product-bottom"><b>${money(p.price)}</b><button class="add-button" data-product="${p.id}">${t('أضف للطلب','Add to order')} +</button></div></div></article>`).join(''):`<div class="empty">${icon(shop.category==='favorites'?'heart':'search')}<strong>${t('لا توجد أصناف هنا بعد','Nothing here yet')}</strong><p>${shop.category==='favorites'?t('اضغط على القلب لحفظ اختياراتك المفضلة.','Tap a heart to save your favourites.'):t('جرب البحث باسم آخر أو اختار كل القائمة.','Try another search or explore the full menu.')}</p><button id="resetMenu">${t('كل القائمة','Full menu')}</button></div>`;
+  $$('[data-product]').forEach(b=>b.onclick=safe(()=>customize(Number(b.dataset.product))));
+  $$('[data-favorite]').forEach(b=>b.onclick=()=>{const id=Number(b.dataset.favorite);shop.favorites=shop.favorites.includes(id)?shop.favorites.filter(x=>x!==id):[...shop.favorites,id];save('tb_favorites',shop.favorites);renderMenu()});
+  if($('#resetMenu'))$('#resetMenu').onclick=()=>{shop.category='';shop.query='';$('#webSearch').value='';renderMenu()};bindImages($('#webProducts'));
+}
+
+export async function customize(id,index=null,withMeal=false){
+  const p=product(id);if(!p)throw new Error(t('الصنف غير متاح حالياً','This item is currently unavailable'));
+  const old=index===null?null:shop.cart[index],mods=shop.catalog.modifiers.filter(m=>m.product_id===id);
+  const extras=shop.catalog.products.filter(x=>x.id!==id&&/fries|cola/i.test(x.name_en||''));
+  await dialog(name(p),`<img class="dialog-image" src="${esc(imageFor(p))}" alt="${esc(name(p))}"><p class="product-description">${esc(description(p))}</p>${mods.length?`<fieldset><legend>${t('خليه على مزاجك','Make it yours')}</legend>${mods.map(m=>`<label class="modifier-row"><input type="checkbox" name="mod${m.id}" ${old?.modifiers?.includes(m.id)?'checked':''}><span>${esc(name(m))}</span><b>+ ${money(m.price)}</b></label>`).join('')}</fieldset>`:''}${index===null&&extras.length?`<fieldset><legend>${t('كمل وجبتك','Make it a meal')}</legend>${extras.map(e=>`<label class="modifier-row"><input type="checkbox" name="extra${e.id}" ${withMeal?'checked':''}><span>${esc(name(e))}</span><b>+ ${money(e.price)}</b></label>`).join('')}</fieldset>`:''}${input('notes',t('تعليمات خاصة (اختياري)','Special instructions (optional)'),'text',old?.notes||'','maxlength="500" placeholder="'+t('مثلاً: الصوص على جنب','For example: sauce on the side')+'"')}<div class="split">${input('quantity',t('الكمية','Quantity'),'number',old?.qty||1,'min="1" max="99" step="1" required')}<strong id="customPrice"></strong></div>`,b=>{
+    const qty=Number(b.quantity);if(!Number.isInteger(qty)||qty<1||qty>99)throw new Error(t('الكمية من ١ إلى ٩٩','Quantity must be between 1 and 99'));
+    if(index!==null)shop.cart.splice(index,1);addLine(id,qty,mods.filter(m=>b['mod'+m.id]).map(m=>m.id),b.notes);
+    if(index===null)for(const extra of extras)if(b['extra'+extra.id])addLine(extra.id,qty);
+    toast(index===null?t('اتضاف لطلبك. بالهنا!','Added to your order. Enjoy!'):t('تم تعديل الصنف','Item updated'));
+  },index===null?t('أضف للطلب','Add to order'):t('حفظ التعديل','Save changes'));
+  const update=()=>{const form=$('#dialog form'),b=Object.fromEntries(new FormData(form));const unit=Number(p.price)+mods.filter(m=>b['mod'+m.id]).reduce((sum,m)=>sum+Number(m.price),0)+(index===null?extras.filter(e=>b['extra'+e.id]).reduce((sum,e)=>sum+Number(e.price),0):0);$('#customPrice').textContent=money(unit*Math.max(1,Number(b.quantity)||1))};$('#dialog form').oninput=update;update();bindImages($('#dialog'));
+}
+
+export function renderMeals(){
+  const burgers=shop.catalog.products.filter(p=>/burger/i.test(p.name_en||'')),extras=shop.catalog.products.filter(p=>/fries|cola/i.test(p.name_en||''));
+  $('#meals').hidden=!burgers.length;
+  $('#mealCards').innerHTML=burgers.slice(0,2).map((p,i)=>`<article class="meal-card"><div class="meal-copy"><span class="eyebrow">${t('اختيارك، بطريقتك','YOUR MEAL. YOUR WAY.')}</span><h3>${esc(name(p))}<br>${t('وأكتر.','& more.')}</h3><p>${extras.map(e=>esc(name(e))).join(' + ')||t('الإضافات حسب اختيارك','Customize your order')}</p><div class="meal-price">${money(Number(p.price)+extras.reduce((s,x)=>s+Number(x.price),0))}</div><button data-meal="${p.id}">${t('كوّن وجبتك','Build your meal')} ↗</button></div><div class="meal-photo"><img src="${esc(imageFor(i===0?p:extras[0]||p))}" alt="${esc(name(i===0?p:extras[0]||p))}" loading="lazy"></div></article>`).join('');
+  $$('[data-meal]').forEach(b=>b.onclick=safe(()=>customize(Number(b.dataset.meal),null,true)));bindImages($('#mealCards'));
+}
+
+export function renderCart(){
+  save('tb_web_cart',shop.cart);const count=itemCount();$('#bagCount').textContent=count;$('#cartCount').textContent=count;$('#cartTitle').textContent=t('طلبك','Your bag');
+  $('#cartMethod').innerHTML=icon(method()?.requires_delivery?'delivery':'pickup')+esc(name(method()));
+  $('#webCart').innerHTML=shop.cart.length?shop.cart.map((x,i)=>{const p=product(x.productId);return `<div class="cart-line"><div class="cart-line-top"><img src="${esc(imageFor(p))}" alt=""><div><strong>${esc(p?name(p):t('صنف غير متاح','Unavailable item'))}</strong><small>${esc((x.modifiers||[]).map(id=>name(shop.catalog.modifiers.find(m=>m.id===id))).join(' · '))}${x.notes?' · '+esc(x.notes):''}</small>${!validLine(x)?`<small class="dialog-error">${t('يرجى التعديل أو الحذف','Please edit or remove this item')}</small>`:''}</div></div><div class="cart-line-bottom"><div class="qty"><button data-change="${i}" data-delta="-1" aria-label="${t('تقليل الكمية','Decrease quantity')}">−</button><span>${x.qty}</span><button data-change="${i}" data-delta="1" ${x.qty>=99?'disabled':''} aria-label="${t('زيادة الكمية','Increase quantity')}">+</button></div><b>${money(linePrice(x)*x.qty)}</b></div><div class="split"><button class="edit-line" data-edit="${i}" ${!p?'disabled':''}>${t('تعديل','Edit')}</button><button class="edit-line" data-remove="${i}">${t('حذف','Remove')}</button></div></div>`}).join(''):`<div class="empty">${icon('bag')}<strong>${t('في انتظار أول قضمة','Your next great bite awaits')}</strong><p>${t('اختار من القائمة وسيب الباقي علينا.','Pick your favourites. We’ll take it from here.')}</p></div>`;
+  $$('[data-change]').forEach(b=>b.onclick=()=>{const x=shop.cart[Number(b.dataset.change)];x.qty=Math.min(99,x.qty+Number(b.dataset.delta));shop.cart=shop.cart.filter(x=>x.qty>0);changed()});
+  $$('[data-remove]').forEach(b=>b.onclick=()=>{shop.cart.splice(Number(b.dataset.remove),1);changed()});
+  $$('[data-edit]').forEach(b=>b.onclick=safe(()=>customize(shop.cart[Number(b.dataset.edit)].productId,Number(b.dataset.edit))));
+  $('#cartSummary').innerHTML=count?priceSummary():'';$('#checkout').textContent=t('متابعة الطلب','Checkout');$('#checkout').disabled=!shop.online||!count||!method()||!shop.cart.every(validLine);
+  $('#mobileCart').hidden=!count;$('#mobileCart').innerHTML=`<span>${icon('bag')} ${count} · ${t('عرض طلبك','View your bag')}</span><b>${money(totals().total)}</b>`;document.body.classList.toggle('has-cart',!!count);bindImages($('#webCart'));
+}
+let lastFocus;
+matchMedia('(max-width:800px)').addEventListener('change',()=>closeCart());
+export function openCart(){if(matchMedia('(max-width:800px)').matches){lastFocus=document.activeElement;document.body.classList.add('cart-open');$('#cartBackdrop').hidden=false;$('#cartPanel').setAttribute('role','dialog');$('#cartPanel').setAttribute('aria-modal','true');$('#closeCart').focus()}else $('#cartPanel').scrollIntoView({behavior:'smooth',block:'center'})}
+export function closeCart(){document.body.classList.remove('cart-open');$('#cartBackdrop').hidden=true;$('#cartPanel').removeAttribute('role');$('#cartPanel').removeAttribute('aria-modal');lastFocus?.focus()}
+document.addEventListener('keydown',e=>{if(!document.body.classList.contains('cart-open')||$('#dialog').open)return;if(e.key==='Escape')closeCart();if(e.key==='Tab'){const focusable=$$('button:not(:disabled),a[href],input', $('#cartPanel')).filter(x=>x.offsetParent!==null),first=focusable[0],last=focusable.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus()}}});

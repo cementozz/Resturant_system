@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#e53b24"><meta name="description" content="Track Bite — اطلب البرجر والمفضلات للتوصيل أو الاستلام. Order burgers, customize your meal, and track your order.">
+  <title>Track Bite | طعم على مزاجك</title><link rel="icon" href="/customer/assets/brand.svg" type="image/svg+xml"><link rel="stylesheet" href="/customer/storefront.css">
+</head>
+<body>
+  <a class="skip-link" href="#menu">القائمة / Menu</a><div id="toast" role="status" aria-live="polite"></div><dialog id="dialog"></dialog>
+  <header class="site-header">
+    <a href="/customer/" class="brand" aria-label="Track Bite home"><img src="/customer/assets/brand.svg" alt="" width="42" height="42"><span>TRACK<span class="brand-bite">BITE.</span><small>BIG FLAVOUR. EVERY BITE.</small></span></a>
+    <nav class="desktop-nav" aria-label="Main"><a href="#menu" data-i18n="menu"></a><a href="#meals" data-i18n="meals"></a><button data-action="history" data-i18n="orders"></button><button data-action="restaurant" data-i18n="restaurant"></button></nav>
+    <div class="header-actions"><button id="webLanguage" class="text-button">EN</button><button data-action="profile" class="icon-button" id="profileButton"></button><button data-action="cart" class="header-cart"><span id="bagIcon"></span><span id="bagCount">0</span></button></div>
+  </header>
+  <main>
+    <section class="hero" aria-labelledby="webTitle">
+      <div class="hero-copy"><div class="hero-kicker"><span></span><span data-i18n="heroKicker"></span></div><h1 id="webTitle"></h1><p data-i18n="heroSubtitle"></p><a href="#menu" class="primary hero-cta"><span data-i18n="orderNow"></span><span aria-hidden="true">↗</span></a><div class="hero-note" data-i18n="heroNote"></div></div>
+      <div class="hero-photo"><img src="/customer/assets/hero.png" fetchpriority="high" alt="برجر وبطاطس — Burger and fries"><div class="hero-stamp" aria-hidden="true">LOVE AT<br>FIRST BITE.</div><span class="photo-note" data-i18n="photoNote"></span></div>
+    </section>
+    <section class="order-strip wrap"><div class="order-methods" id="orderMethods"></div><button id="addressButton" class="address-button"></button><span id="webStatus" role="status"></span></section>
+    <div class="wrap"><section id="tracking" class="tracking" hidden aria-live="polite"></section></div>
+    <section class="wrap meal-section" id="meals"><div class="section-heading"><div><span class="eyebrow" data-i18n="mealEyebrow"></span><h2 data-i18n="mealTitle"></h2></div><p data-i18n="mealSubtitle"></p></div><div id="mealCards" class="meal-cards"></div></section>
+    <section id="menu" class="wrap menu-section" aria-labelledby="menuTitle"><div class="section-heading"><div><span class="eyebrow" data-i18n="menuEyebrow"></span><h2 id="menuTitle" data-i18n="menuTitle"></h2></div><div class="search-box"><span id="searchIcon"></span><input id="webSearch" type="search" autocomplete="off"><button id="clearSearch" hidden aria-label="Clear search">×</button></div></div>
+      <div class="menu-layout"><div class="menu-content"><div class="menu-toolbar"><div id="webCategories" class="categories" role="group"></div><select id="menuSort"></select></div><p id="resultCount" class="result-count" role="status"></p><div id="webProducts" class="products"><p class="empty">جاري تحميل القائمة… / Loading menu…</p></div></div>
+      <aside class="cart" id="cartPanel" aria-labelledby="cartTitle"><div class="cart-heading"><h2 id="cartTitle"></h2><span id="cartCount" class="pill"></span><button id="closeCart" class="icon-button" aria-label="Close cart">×</button></div><div id="cartMethod" class="cart-method"></div><div id="webCart"></div><div id="cartSummary"></div><button id="checkout" class="primary full" disabled></button><p class="cart-footnote" data-i18n="payNote"></p></aside></div>
+    </section>
+    <section class="story-banner wrap"><div class="story-mark" aria-hidden="true">TB.</div><div><span class="eyebrow" data-i18n="storyEyebrow"></span><h2 data-i18n="storyTitle"></h2><p data-i18n="storyText"></p></div><button class="outline-button" data-action="restaurant" data-i18n="restaurant"></button></section>
+    <section class="wrap faq-section"><div class="section-heading"><h2 data-i18n="faqTitle"></h2></div><div id="faq"></div></section>
+  </main>
+  <footer><div class="wrap footer-top"><a class="footer-brand" href="#">TRACKBITE.</a><p data-i18n="footerTagline"></p><div class="footer-links"><button data-action="restaurant" data-i18n="contact"></button><button data-action="privacy" data-i18n="privacy"></button><button data-action="history" data-i18n="orders"></button></div></div><div class="wrap footer-bottom"><span>© <span id="year"></span> Track Bite</span><span data-i18n="currencyNote"></span></div></footer>
+  <button id="mobileCart" class="mobile-cart" hidden></button><div id="cartBackdrop" hidden></div><script type="module" src="/customer/storefront.js"></script>
+</body></html>

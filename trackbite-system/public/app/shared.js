@@ -1,0 +1,25 @@
+export const state={token:localStorage.getItem('tb_token'),lang:localStorage.getItem('tb_lang')||'ar',user:null,data:null,view:'pos',cart:[]};
+export const $=(s,root=document)=>root.querySelector(s);
+export const $$=(s,root=document)=>[...root.querySelectorAll(s)];
+export const t=(ar,en)=>state.lang==='ar'?ar:en;
+export const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export const name=o=>o?(state.lang==='ar'?o.name_ar||o.name_en:o.name_en||o.name_ar)||'—':'—';
+export const money=n=>n==null?t('غير متاح','Unknown'):new Intl.NumberFormat(state.lang==='ar'?'ar-EG':'en-GB',{style:'currency',currency:'EGP',maximumFractionDigits:2}).format(n);
+export const can=p=>state.data?.permissions?.includes(p);
+export const statusName=s=>({accepted:t('مقبول','Accepted'),preparing:t('قيد التحضير','Preparing'),ready:t('جاهز','Ready'),fulfilled:t('تم التسليم','Fulfilled'),pending:t('في الانتظار','Pending'),completed:t('مكتمل','Completed'),refunded:t('مسترد','Refunded'),paid:t('مدفوع','Paid'),due:t('الدفع عند الاستلام','Payment due'),cancelled:t('ملغي','Cancelled')})[s]||s;
+export function toast(msg){const el=$('#toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),4500)}
+export async function api(url,options={}){const r=await fetch(url,{...options,headers:{'content-type':'application/json',...(state.token?{authorization:'Bearer '+state.token}:{}),...options.headers}});const d=await r.json();if(!r.ok){const e=new Error(d.error||r.statusText);e.status=r.status;throw e}return d}
+export const post=(url,b={})=>api(url,{method:'POST',body:JSON.stringify(b)});
+export const safe=fn=>async(...args)=>{try{await fn(...args)}catch(e){toast(e.message)}};
+export async function bootstrap(){state.data=await api('/api/bootstrap')}
+export const options=(rows,selected=null,label=name)=>rows.map(r=>`<option value="${esc(r.id)}" ${String(r.id)===String(selected)?'selected':''}>${esc(label(r))}</option>`).join('');
+export function input(key,label,type='text',value='',extra=''){return `<label>${esc(label)}<input name="${key}" type="${type}" value="${esc(value)}" ${extra}></label>`}
+export function select(key,label,rows,value,labelFn=name){return `<label>${esc(label)}<select name="${key}">${options(rows,value,labelFn)}</select></label>`}
+export function panel(title,body,cls=''){return `<section class="panel ${cls}"><h2>${esc(title)}</h2>${body}</section>`}
+export function table(headers,rows){return `<div class="table-wrap"><table><thead><tr>${headers.map(h=>`<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(c=>`<tr>${c.map(x=>`<td>${x??'—'}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${headers.length}" class="empty">${t('لا توجد سجلات','No records yet')}</td></tr>`}</tbody></table></div>`}
+export const form=(id,title,body,button=t('حفظ','Save'))=>panel(title,`<form id="${id}" class="form-grid">${body}<button class="primary">${esc(button)}</button></form>`);
+export function bindForm(id,url,transform=x=>x,after=()=>{}){const el=$(id);if(!el)return;el.onsubmit=safe(async e=>{e.preventDefault();const button=$('button[type=submit],button.primary',el);if(button)button.disabled=true;try{const body=transform(Object.fromEntries(new FormData(el)));const result=await post(url,body);toast(t('تم الحفظ','Saved'));await bootstrap();await after(result)}finally{if(button)button.disabled=false}})}
+export async function dialog(title,body,onSubmit,button=t('تأكيد','Confirm')){const el=$('#dialog');el.innerHTML=`<form method="dialog"><div class="dialog-head"><h2>${esc(title)}</h2><button value="cancel" type="button" id="dialogClose">×</button></div><div class="form-grid">${body}</div><button type="submit" class="primary">${esc(button)}</button><p class="dialog-error" role="alert"></p></form>`;$('#dialogClose').onclick=()=>el.close();$('form',el).onsubmit=async e=>{e.preventDefault();const submit=$('button[type=submit]',el);submit.disabled=true;try{await onSubmit(Object.fromEntries(new FormData(e.target)),e.target);el.close()}catch(e){$('.dialog-error',el).textContent=e.message}finally{submit.disabled=false}};el.showModal()}
+export function approvalFields(){return `<details><summary>${t('موافقة مدير عند الحاجة','Manager approval if required')}</summary>${input('manager',t('اسم مستخدم المدير','Manager username'))}${input('managerPassword',t('كلمة مرور المدير','Manager password'),'password')}</details>`}
+export const approval=b=>b.manager?{username:b.manager,password:b.managerPassword}:undefined;
+export function csv(filename,headers,rows){const quote=x=>'"'+String(x??'').replace(/^[=+@-]/,"'$&").replace(/"/g,'""')+'"';const blob=new Blob(['\uFEFF'+[headers,...rows].map(r=>r.map(quote).join(',')).join('\r\n')],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}

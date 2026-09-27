@@ -1,0 +1,18 @@
+{
+  "name": "trackbite-restaurant-system",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Local-first restaurant POS, inventory, production and customer ordering system",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "cloud": "node cloud/server.js",
+    "test": "node tests/smoke.js && node tests/sync-smoke.js && node tests/platform.js && node tests/resilience.js && node tests/storefront.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "optionalDependencies": {
+    "pg": "^8.13.0"
+  }
+}

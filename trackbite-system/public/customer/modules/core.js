@@ -1,0 +1,18 @@
+import {state as language,$,$$,t,esc,name,money,toast,safe,dialog,input,select,statusName} from '/app/shared.js';
+export {$,$$,t,esc,name,money,toast,safe,dialog,input,select,statusName,language};
+export function read(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}}
+export function save(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{toast(t('تعذر حفظ البيانات على هذا الجهاز','Could not save data on this device'))}}
+const storedCart=read('tb_web_cart',[]);
+export const shop={catalog:{products:[],categories:[],modifiers:[],orderTypes:[],settings:{}},online:false,category:'',query:'',sort:'default',cart:Array.isArray(storedCart)?storedCart:[],method:read('tb_web_method','pickup'),favorites:read('tb_favorites',[]),history:read('tb_web_history',[]),addresses:read('tb_web_addresses',[]),profile:read('tb_delivery',{}),lastStatus:null};
+for(const key of ['favorites','history','addresses'])if(!Array.isArray(shop[key]))shop[key]=[];
+export async function request(url,body){const r=await fetch(url,{method:body===undefined?'GET':'POST',headers:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw new Error(data.error||t('تعذر إتمام الطلب','Request failed'));return data}
+export const product=id=>shop.catalog.products.find(p=>p.id===Number(id));
+export const method=()=>shop.catalog.orderTypes.find(x=>(x.code||x.id)===shop.method);
+export const linePrice=line=>Number(product(line.productId)?.price||0)+(line.modifiers||[]).reduce((sum,id)=>sum+Number(shop.catalog.modifiers.find(m=>m.id===id)?.price||0),0);
+export const subtotal=()=>Math.round(shop.cart.reduce((sum,x)=>sum+Math.round(linePrice(x)*x.qty*100)/100,0)*100)/100;
+export const itemCount=()=>shop.cart.reduce((sum,x)=>sum+x.qty,0);
+export const changed=()=>document.dispatchEvent(new CustomEvent('shop:change'));
+export function addLine(productId,qty=1,modifiers=[],notes=''){const key=JSON.stringify([productId,[...modifiers].sort((a,b)=>a-b),notes.trim()]);const old=shop.cart.find(x=>x.key===key);if(old)old.qty=Math.min(99,old.qty+qty);else shop.cart.push({productId,qty,modifiers,notes:notes.trim(),key});changed()}
+export function imageFor(p){const url=p?.image_url;if(url&&(/^(https?:\/\/|\/[^/])/.test(url)))return url;const n=String(p?.name_en||'').toLowerCase();if(n==='classic burger')return '/customer/assets/classic.png';if(n==='double burger')return '/customer/assets/double.png';if(n==='loaded fries')return '/customer/assets/fries.png';if(/cola|drink|juice|water/.test(n))return '/customer/assets/drink.svg';return '/customer/assets/brand.svg'}
+export const description=p=>(language.lang==='ar'?p.description_ar:p.description_en)||'';
+export const icon=(id)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${({bag:'<path d="M5 7h14l1 14H4L5 7Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',heart:'<path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/>',user:'<circle cx="12" cy="8" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/>',search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',pin:'<path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',pickup:'<path d="M3 10h18M5 10v11h14V10M3 10l2-7h14l2 7M9 21v-7h6v7"/>',delivery:'<path d="M2 6h12v12H2zM14 10h4l4 4v4h-8"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/>',check:'<path d="m5 12 4 4L20 5"/>'})[id]||''}</svg>`;
