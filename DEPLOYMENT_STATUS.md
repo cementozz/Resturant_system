@@ -1,4 +1,24 @@
-# Production activation — 28 September 2026
+# Production update — 28 September 2026
+
+Sites **version 3** deployed successfully from source `468f650ab3a7b76a9fcc95a00eb15889755eef22`. GitHub main contains the same implementation. The existing public URL, audience, D1 data and installation pairing were retained:
+
+- Website: https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/
+- Windows POS: http://127.0.0.1:4173/pos/
+- Run file: `02_START_POS.bat` in the repository root.
+
+The POS now requires explicit staff acceptance of website orders. Incoming and Needs Review are durable queues; the kitchen refreshes automatically and status changes synchronize back. Read-only production verification found production mode, the correct cloud origin, valid pairing, a fresh heartbeat, matching catalog revisions, **0 pending / 0 failed outbound jobs**, and **0 pending decision acknowledgements**.
+
+The previously hidden experimental website order **#5004** is visible in **Needs Review**. It was not accepted, rejected or deleted during deployment. Its original preparation-stock failure is retained for review. The owner confirmed all historical orders were experiments, not real service.
+
+The real-menu seed ran with `--keep-demo --experimental-existing`. It created 5 categories and reused 2; created 28 products and reused Cola, representing all **29** supplied menu items; created 28 generic ingredients and reused 8, representing **36** supplied ingredients; and prepared **7** inactive extra templates. All 29 real products await recipes and selling prices. No actual purchase costs are present. **Zero products are published**, intentionally, until setup is complete.
+
+Existing experimental menu definitions were archived and marked unverified; no operational history was removed. Before migration/seeding, the SQLite backup passed integrity verification. The post-seed content hashes matched for all **8 orders, 17 order items, 3 payments, 0 purchases, 76 stock movements, 3 customers, 15 recipe lines and 8 modifiers**. Migrations 11–12 also created verified backups. The four pre-existing hosted order rows were exported without truncation before deployment. Private backups and verification records are under `.runtime/backups/order-confirmation/`, excluded from GitHub.
+
+Read-only live browser verification passed **6 check groups**: public Arabic/English mobile rendering with no unverified product published; #5004 visible in Needs Review; menu drafts and all seven item tabs; production health/settings; restricted Kitchen board without financial filters; and zero unexpected console/page errors. No production checkout or stock transaction was created. Exact isolated regression results are in [TEST_REPORT.md](TEST_REPORT.md).
+
+**Still required for real service:** the ingredient purchase receipt, actual recipe quantities and selling prices, reconciliation of experimental stock against real opening inventory, and physical printer verification. See [REAL_MENU_SETUP.md](REAL_MENU_SETUP.md). Staff passwords are unchanged and remain private in `.runtime/access/PRODUCTION-LOGINS.txt`. Keep this PC awake and the POS running to receive website orders.
+
+## Previous activation record
 
 Version 0.6 is deployed at https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/ and the paired Windows POS is running at http://127.0.0.1:4173/pos/.
 
