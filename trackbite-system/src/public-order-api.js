@@ -1,11 +1,13 @@
-const crypto=require('crypto');const {one,all,run,transaction}=require('./db');const orders=require('./orders');
-function handle(req,res,url,user,b,json){const path=url.pathname,done=data=>{json(res,200,data);return true};
+const {one}=require('./db');
+async function handle(req,res,url,user,b,json){const path=url.pathname,done=data=>{json(res,200,data);return true};
  if(path==='/api/public/orders'&&req.method==='POST'){
- const v=require('../public/shared/validation');v.requestId(b.requestId,true);b.items=v.items(b.items);b.customerPhone=v.phone(b.customerPhone);if(!String(b.customerName||'').trim()||String(b.customerName).length>100)throw Error('Customer name required');if(!Number.isFinite(Number(b.expectedTotal)))throw Error('Expected total required');
- if(one("SELECT value FROM settings WHERE key='guest_checkout_enabled'")?.value==='false'){const e=Error('Use the hosted website to sign in');e.status=403;throw e}
- const bucket='order:'+req.socket.remoteAddress+':'+Math.floor(Date.now()/60000),rate=one('INSERT INTO auth_attempts(bucket,count,expires_at) VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET count=count+1 RETURNING count',bucket,Date.now()+120000);if(rate.count>20){const e=Error('Too many order attempts');e.status=429;throw e}
-const settings=Object.fromEntries(all('SELECT key,value FROM settings').map(r=>[r.key,r.value]));const type=one('SELECT * FROM order_types WHERE code=? AND active=1 AND online=1',b.orderType||'pickup');if(!type)throw new Error('Order type unavailable');const result=transaction(()=>{const order=orders.createOrder({source:'web',requestId:b.requestId||null,items:b.items||[],customerName:b.customerName||null,customerPhone:b.customerPhone||null,orderType:type.code,deliveryDetails:b.deliveryDetails||{},deliveryAddress:b.deliveryAddress||null,deliveryFee:type.requires_delivery?Number(settings.delivery_fee||0):0,notes:b.notes||null,deferredPayment:true});if(b.expectedTotal!==undefined&&(!Number.isFinite(Number(b.expectedTotal))||Math.abs(Number(b.expectedTotal)-order.total)>0.001))throw new Error('Menu prices changed. Reopen checkout to review the latest total.');let tracking=one('SELECT token FROM local_order_tracking WHERE order_id=?',order.id);if(!tracking){tracking={token:crypto.randomBytes(24).toString('hex')};run('INSERT INTO local_order_tracking(order_id,token) VALUES(?,?)',order.id,tracking.token)}return {id:order.id,sequential_no:order.sequential_no,total:order.total,status:order.fulfillment_status,trackingToken:tracking.token}});return done({order:result})}
- if(path.startsWith('/api/tracking/')){const token=path.split('/').pop(),row=one(`SELECT o.sequential_no,CASE WHEN o.status='refunded' THEN 'cancelled' ELSE o.fulfillment_status END status,o.total,o.payment_status FROM orders o JOIN local_order_tracking t ON t.order_id=o.id WHERE t.token=?`,token);if(!row){json(res,404,{error:'Order not found'});return true}return done({order:row})}
+  if(!require('./sync-policy').configuration().url){json(res,503,{error:'Online ordering requires the connected restaurant cloud'});return true}
+  return done(await require('./sync-service').cloud('/api/orders',{method:'POST',body:JSON.stringify(b)}));
+ }
+ if(path.startsWith('/api/tracking/')){const token=path.split('/').pop(),row=one("SELECT o.sequential_no,CASE WHEN o.status='refunded' THEN 'refunded' ELSE o.fulfillment_status END status,o.total,o.payment_status FROM orders o JOIN local_order_tracking t ON t.order_id=o.id WHERE t.token=?",token);if(row)return done({order:row});
+  if(require('./sync-policy').configuration().url)return done(await require('./sync-service').cloud('/api/tracking/'+encodeURIComponent(token)));
+  json(res,404,{error:'Order not found'});return true;
+ }
  return false;
 }
 module.exports={handle};

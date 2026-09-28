@@ -1,6 +1,7 @@
 const {one,all,run,transaction}=require('./db');
 const {verifyPassword}=require('./auth');
 const catalog={
+ 'orders.confirm':['owner','manager','cashier'], 'orders.reject':['owner','manager'],
  'orders.amend':['owner','manager'], 'customers.read':['owner','manager','cashier'], 'customers.pii':['owner','manager','cashier'], 'customers.edit':['owner','manager','cashier'],
  'inventory.receive':['owner','manager','storekeeper'], 'inventory.transfer':['owner','manager','storekeeper'],
  'menu.read':['owner','manager','cashier','accountant','storekeeper','kitchen'], 'payments.manage':['owner','manager','accountant'], 'printing.manage':['owner','manager'], 'sync.manage':['owner','manager'],

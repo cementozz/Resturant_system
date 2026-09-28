@@ -32,7 +32,8 @@ async function wait(){for(let i=0;i<30;i++){try{await j('/api/status');return}ca
  inv=await j('/api/inventory/summary',{headers:h});
  const beefAfter=Number(inv.summary.find(x=>x.ingredient_id===1).quantity_base);
  if(beefBefore-beefAfter!==10000) throw new Error('Production did not consume beef');
- const publicOrder=await j('/api/public/orders',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items:[{productId:4,qty:1}],payments:[{methodId:1,amount:35}],customerName:'Website Smoke',customerPhone:'01012345678',requestId:require('crypto').randomUUID(),expectedTotal:35})});
+ const publicOrder=await fetch(base+'/api/public/orders',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items:[{productId:4,qty:1}],payments:[{methodId:1,amount:35}],customerName:'Website Smoke',customerPhone:'01012345678',requestId:require('crypto').randomUUID(),expectedTotal:35})});
+ if(publicOrder.status!==503)throw Error('Unpaired local checkout must fail closed');
  const supplier=await j('/api/suppliers',{method:'POST',headers:h,body:JSON.stringify({name:'Smoke Supplier',phone:'0100'})});
  await j('/api/purchases',{method:'POST',headers:h,body:JSON.stringify({supplierId:supplier.id,invoiceNo:'SM-1',items:[{variantId:3,locationId:1,quantityPurchase:10,unitPricePurchase:4}]})});
  await j('/api/expenses',{method:'POST',headers:h,body:JSON.stringify({category:'Gas',description:'Smoke expense',amount:50,paymentMethodId:1})});
@@ -43,8 +44,8 @@ async function wait(){for(let i=0;i<30;i++){try{await j('/api/status');return}ca
  if(Number(finance.expenses)!==50) throw new Error('Expense report mismatch');
  const backup=await j('/api/admin/backup',{method:'POST',headers:h,body:'{}'}); if(!backup.file) throw new Error('Backup failed');
  const report=await j('/api/reports/today',{headers:h});
- if(Number(report.sales.total_sales)!==335) throw new Error('Report total mismatch');
+ if(Number(report.sales.total_sales)!==300) throw new Error('Report total mismatch');
  const close=await j('/api/shifts/close',{method:'POST',headers:h,body:JSON.stringify({closingCash:2300})});
- console.log(JSON.stringify({ok:true,posOrder:order.order.sequential_no,websiteOrder:publicOrder.order.sequential_no,pattyDeduction:pattyBefore-pattyAfter,productionBeefConsumed:beefBefore-beefAfter,totalSales:report.sales.total_sales,expenses:finance.expenses,backup:!!backup.file,closeDifference:close.difference},null,2));
+ console.log(JSON.stringify({ok:true,posOrder:order.order.sequential_no,unpairedCheckoutBlocked:publicOrder.status===503,pattyDeduction:pattyBefore-pattyAfter,productionBeefConsumed:beefBefore-beefAfter,totalSales:report.sales.total_sales,expenses:finance.expenses,backup:!!backup.file,closeDifference:close.difference},null,2));
  } finally { child.kill(); await sleep(100); for (const suffix of ['', '-wal', '-shm']) { try { fs.unlinkSync(db+suffix); } catch {} } try { fs.rmSync(path.join(__dirname,'backups'),{recursive:true,force:true}); } catch {} }
 })().catch(e=>{console.error(e);child.kill();process.exit(1)});

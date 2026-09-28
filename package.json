@@ -5,9 +5,10 @@
   "scripts": {
     "build": "node tools/prepare-public-site.cjs && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 5188",
-    "test": "node trackbite-system/tests/hosted-cloud.cjs && node trackbite-system/tests/security.cjs && node trackbite-system/tests/accounts.cjs && node trackbite-system/tests/connected.cjs && node trackbite-system/tests/updates.cjs",
+    "test": "node trackbite-system/tests/hosted-cloud.cjs && node trackbite-system/tests/security.cjs && node trackbite-system/tests/accounts.cjs && node trackbite-system/tests/connected.cjs && node trackbite-system/tests/updates.cjs && node trackbite-system/tests/online-orders.cjs && node trackbite-system/tests/real-menu.cjs",
     "check": "node tools/check-source.cjs",
-    "test:browser": "node trackbite-system/tests/browser.cjs"
+    "test:browser": "node trackbite-system/tests/browser.cjs && node trackbite-system/tests/kitchen-browser.cjs",
+    "seed:real-menu": "node trackbite-system/tools/seed-real-menu.js"
   },
   "engines": {
     "node": ">=22.13.0"

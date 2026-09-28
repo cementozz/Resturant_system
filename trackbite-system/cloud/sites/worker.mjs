@@ -1,3 +1,4 @@
+import {onlineSchema,onlineApi} from './online-orders.mjs';
 import {redemptionSchema,redemptionApi} from './redemptions.mjs';
 import {remoteSchema,remoteApi} from './remote.mjs';
 import {accountSchema,accountApi,customerSession,customerView} from './accounts.mjs';
@@ -10,7 +11,7 @@ const schema=[...accountSchema,...remoteSchema,...redemptionSchema,
   `CREATE TABLE IF NOT EXISTS site_orders(seq INTEGER PRIMARY KEY AUTOINCREMENT,id TEXT NOT NULL UNIQUE,request_key TEXT NOT NULL UNIQUE,request_hash TEXT NOT NULL,tracking_token TEXT NOT NULL UNIQUE,status TEXT NOT NULL DEFAULT 'pending',payment_status TEXT NOT NULL DEFAULT 'due',payload TEXT NOT NULL,total REAL NOT NULL,local_order_id TEXT UNIQUE,error TEXT,created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,imported_at TEXT)`,
   'CREATE TABLE IF NOT EXISTS site_sync_receipts(event_key TEXT PRIMARY KEY,received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)',
   'CREATE TABLE IF NOT EXISTS site_rate_limits(bucket TEXT PRIMARY KEY,count INTEGER NOT NULL,expires_at INTEGER NOT NULL)',
-  'CREATE INDEX IF NOT EXISTS site_order_pending ON site_orders(status,seq)'
+  'CREATE INDEX IF NOT EXISTS site_order_pending ON site_orders(status,seq)',...onlineSchema
 ];
 const initialized=new WeakMap();
 class HttpError extends Error{constructor(status,message){super(message);this.status=status}}
@@ -64,6 +65,7 @@ async function api(request,env,url){
   if(path.startsWith('/api/sync/')&&!await secureEqual(request.headers.get('x-sync-secret'),env.SYNC_SECRET))return json({error:'Unauthorized'},401);
   if(path.startsWith('/api/sync/')&&env.INSTALLATION_ID&&request.headers.get('x-installation-id')!==env.INSTALLATION_ID)fail(403,'Incorrect restaurant installation');
   const db=await store(env.DB);
+  const incomingResponse=await onlineApi({db,request,url,body,json,fail});if(incomingResponse)return incomingResponse;
   const accountResponse=await accountApi({db,request,url,body,json,fail,state,env});if(accountResponse)return accountResponse;const remoteResponse=await remoteApi({db,request,url,body,json,fail,state,env});if(remoteResponse)return remoteResponse;const redemptionResponse=await redemptionApi({db,request,url,body,json,fail,state,digest});if(redemptionResponse)return redemptionResponse;
   if(path==='/api/status'&&verb==='GET'){const heartbeat=await state(db,'heartbeat');return json({ok:true,service:'Track Bite Cloud',heartbeat:heartbeat||null,restaurantOnline:online(heartbeat)})}
   if(path==='/api/public/menu'&&verb==='GET'){
@@ -83,38 +85,29 @@ async function api(request,env,url){
     const catalog=JSON.parse(await state(db,'catalog')||'{}');if(!customer&&catalog.settings?.guest_checkout_enabled==='false')fail(401,'Sign in to place an order');const type=(catalog.orderTypes||[]).find(x=>(x.code||x.id)===input.orderType);if(!type)fail(400,'Order type unavailable');
     if(!input.customerName||!/^\+?[0-9 ()-]{7,25}$/.test(input.customerPhone||''))fail(400,'Customer name and a valid mobile number are required');
     if(type.requires_delivery&&!input.deliveryAddress)fail(400,'Delivery address is required');
-    const items=input.items.map(item=>{const p=(catalog.products||[]).find(x=>x.id===item.productId);if(!p)fail(400,'Product unavailable');let price=Number(p.price);for(const id of item.modifiers){const mod=(catalog.modifiers||[]).find(m=>m.id===id&&m.product_id===p.id);if(!mod)fail(400,'Modifier unavailable');price+=Number(mod.price)}if(!Number.isFinite(price)||price<0)fail(400,'Invalid product price');return {...item,price:pricing.round(price)}});
+    const items=input.items.map(item=>{const p=(catalog.products||[]).find(x=>x.id===item.productId);if(!p||p.available===false)fail(400,'Product unavailable');let price=Number(p.price);for(const id of item.modifiers){const mod=(catalog.modifiers||[]).find(m=>m.id===id&&m.product_id===p.id);if(!mod)fail(400,'Modifier unavailable');price+=Number(mod.price)}if(!Number.isFinite(price)||price<0)fail(400,'Invalid product price');return {...item,product_name_ar:p.name_ar,product_name_en:p.name_en,price:pricing.round(price)}});
     const deliveryFee=type.requires_delivery?Number(catalog.settings?.delivery_fee||0):0;
     const subtotal=pricing.round(items.reduce((sum,item)=>sum+pricing.round(item.price*item.qty),0));let reward=null,discount=0;if(input.rewardId){if(catalog.loyaltySettings?.enabled===false)fail(400,'Loyalty is disabled');if(!customer)fail(401,'Sign in to redeem rewards');const rewards=JSON.parse(await state(db,'loyalty_rewards')||'[]');reward=rewards.find(r=>r.id===input.rewardId);try{discount=loyalty.discount(reward,items,subtotal)}catch(e){fail(400,e.message)}}
     const priced=pricing.calculate({subtotal,discount,deliveryFee,settings:catalog.settings});
     if(!Number.isFinite(Number(b.expectedTotal))||Math.abs(Number(b.expectedTotal)-priced.total)>0.001)fail(409,'Menu prices changed. Reopen checkout to review the latest total.');
     await rateLimit(db,request);
     const id=crypto.randomUUID(),trackingToken=crypto.randomUUID().replaceAll('-','')+crypto.randomUUID().replaceAll('-','');
-    const payload={...input,cloudOrderId:id,items,deliveryFee,discount,pricing:priced,total:priced.total,reward:reward?{...reward,redemption_key:'redeem:'+key}:null};
+    const payload={catalogRevision:catalog.revision,...input,cloudOrderId:id,items,deliveryFee,discount,pricing:priced,total:priced.total,reward:reward?{...reward,redemption_key:'redeem:'+key}:null};
     // One atomic insert owns the request ID, amount, payload and private tracking token.
-    const writes=[['INSERT INTO site_orders(id,request_key,request_hash,tracking_token,payload,total) VALUES(?,?,?,?,?,?) ON CONFLICT(request_key) DO NOTHING',id,key,hash,trackingToken,JSON.stringify(payload),priced.total]];
+    const writes=[["INSERT INTO site_orders(id,request_key,request_hash,tracking_token,payload,total,status) VALUES(?,?,?,?,?,?,'awaiting_restaurant_confirmation') ON CONFLICT(request_key) DO NOTHING",id,key,hash,trackingToken,JSON.stringify(payload),priced.total]];
     if(reward)writes.push(['INSERT OR IGNORE INTO site_loyalty(id,customer_id,order_id,type,delta,idempotency_key,reason,actor) SELECT ?,?,id,"redeem",?,?,?,? FROM site_orders WHERE request_key=? AND request_hash=?',crypto.randomUUID(),customer.id,-reward.points_cost,'redeem:'+key,'Reward: '+reward.name_en,customer.id,key,hash]);
     try{await db.batch(writes)}catch(e){if(String(e).includes('Insufficient points'))fail(409,'Insufficient points');throw e}
     const saved=await db.one('SELECT * FROM site_orders WHERE request_key=?',key);if(saved.request_hash!==hash)fail(409,'Request ID already used for another order');return json({order:publicOrder(saved)},201);
   }
   const tracking=path.match(/^\/api\/tracking\/([a-f0-9]{48,64})$/);
-  if(tracking&&verb==='GET'){const row=await db.one('SELECT seq,status,total,payment_status,error FROM site_orders WHERE tracking_token=?',tracking[1]);return row?json({order:{sequential_no:row.seq+5000,status:row.status,total:row.total,payment_status:row.payment_status,error:row.error?'Restaurant review required':null}}):json({error:'Order not found'},404)}
+  if(tracking&&verb==='GET'){const row=await db.one('SELECT o.seq,o.status,o.total,o.payment_status,o.error,d.reason FROM site_orders o LEFT JOIN site_order_decisions d ON d.order_id=o.id WHERE tracking_token=?',tracking[1]);return row?json({order:{sequential_no:row.seq+5000,status:row.status,total:row.total,payment_status:row.payment_status,error:row.error?'Restaurant review required':null,rejection_reason:row.reason||null,restaurantOnline:online(await state(db,'heartbeat'))}}):json({error:'Order not found'},404)}
   if(path==='/api/sync/heartbeat'&&verb==='POST'){
     const b=await body(request);if(env.INSTALLATION_ID&&b.installationId!==env.INSTALLATION_ID)fail(403,'Incorrect restaurant installation');
-    await db.batch([put('heartbeat',new Date().toISOString())]);return json({ok:true,catalogRevision:await state(db,'catalog_revision'),staffRevision:await state(db,'staff_revision'),capabilities:['accounts','commands']});
+    await db.batch([put('heartbeat',new Date().toISOString())]);return json({ok:true,catalogRevision:await state(db,'catalog_revision'),staffRevision:await state(db,'staff_revision'),installationId:env.INSTALLATION_ID||b.installationId,heartbeat:await state(db,'heartbeat'),capabilities:['accounts','commands','confirmation']});
   }
   if(path==='/api/sync/catalog'&&verb==='POST'){
     const b=await body(request,2e6);if(!Array.isArray(b.products)||!Array.isArray(b.categories)||!Array.isArray(b.orderTypes))fail(400,'Invalid catalog');
     await db.batch([put('catalog',JSON.stringify(b)),put('catalog_revision',b.revision||''),put('loyalty_settings',JSON.stringify(b.loyaltySettings||{})),put('loyalty_rewards',JSON.stringify(b.loyaltyRewards||[]))]);return json({ok:true,revision:b.revision||null});
-  }
-  if(path==='/api/sync/orders/pending'&&verb==='GET')return json({orders:(await db.all("SELECT * FROM site_orders WHERE status='pending' ORDER BY seq LIMIT 100")).map(row=>({id:row.id,sequential_no:row.seq+5000,total:row.total,payload:{...JSON.parse(row.payload),sequential_no:row.seq+5000}}))});
-  const ack=path.match(/^\/api\/sync\/orders\/([\w-]+)\/(ack|error)$/);
-  if(ack&&verb==='POST'){
-    const b=await body(request);const old=await db.one('SELECT local_order_id FROM site_orders WHERE id=?',ack[1]);if(!old)fail(404,'Order not found');
-    if(ack[2]==='error')await db.run('UPDATE site_orders SET error=? WHERE id=?',text(b.error,500),ack[1]);
-    else{if(!b.localOrderId||!['due','paid','refunded'].includes(b.paymentStatus||'due'))fail(400,'Invalid order acknowledgement');if(old.local_order_id&&old.local_order_id!==b.localOrderId)fail(409,'Order is already linked to a different POS order');
-      await db.run("UPDATE site_orders SET local_order_id=?,status=CASE WHEN status='pending' THEN 'accepted' ELSE status END,payment_status=CASE WHEN status='pending' THEN ? ELSE payment_status END,error=NULL,imported_at=COALESCE(imported_at,?) WHERE id=?",text(b.localOrderId),b.paymentStatus||'due',new Date().toISOString(),ack[1]);}
-    return json({ok:true});
   }
   if(path==='/api/sync/events'&&verb==='POST'){
     const b=await body(request,2e6),key=text(b.eventKey,200);if(!key)fail(400,'Event key required');if(env.INSTALLATION_ID&&b.installationId!==env.INSTALLATION_ID)fail(403,'Incorrect restaurant installation');
@@ -122,8 +115,9 @@ async function api(request,env,url){
     if(b.entityType==='redemption_commit')writes.push(["UPDATE site_redemptions SET status='committed' WHERE request_key=? AND status='reserved'",b.payload.requestId]);
     if(b.entityType==='loyalty'){const p=b.payload;if(!p?.id||!p.customer_id||!Number.isInteger(p.delta)||!['earn','refund_reversal','redemption_reversal','manual_adjustment'].includes(p.type))fail(400,'Invalid loyalty event');writes.push(['INSERT OR IGNORE INTO site_loyalty(id,customer_id,order_id,type,delta,idempotency_key,reason,actor,created_at) VALUES(?,?,?,?,?,?,?,?,?)',p.id,p.customer_id,p.order_id||null,p.type,p.delta,p.idempotency_key,p.reason,p.actor||null,p.created_at||new Date().toISOString()]);}
     if(b.entityType==='customer_order'){const p=b.payload;if(!p?.customer_id||!p.id)fail(400,'Invalid customer order');writes.push(['INSERT INTO site_customer_orders(id,customer_id,payload) SELECT ?,?,? WHERE NOT EXISTS(SELECT 1 FROM site_sync_receipts WHERE event_key=?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=CURRENT_TIMESTAMP',p.id,p.customer_id,JSON.stringify(p),key]);}
-    if(b.entityType==='orders'&&b.payload?.id){const row=b.payload,status=row.status==='refunded'?'cancelled':row.fulfillment_status;if(!['pending','accepted','preparing','ready','fulfilled','cancelled'].includes(status))fail(400,'Invalid order status');
-      writes.push(['UPDATE site_orders SET status=?,payment_status=? WHERE local_order_id=? AND NOT EXISTS(SELECT 1 FROM site_sync_receipts WHERE event_key=?)',status,text(row.payment_status,30),String(row.id),key]);}
+    if(b.entityType==='orders'&&b.payload?.id){const row=b.payload,status=row.status==='refunded'?(row.payment_status==='refunded'?'refunded':'cancelled'):row.fulfillment_status==='accepted'?'confirmed':row.fulfillment_status==='fulfilled'?'completed':row.fulfillment_status;if(!['confirmed','preparing','ready','completed','cancelled','refunded'].includes(status))fail(400,'Invalid order status');
+      const rank={confirmed:1,preparing:2,ready:3,completed:4,cancelled:5,refunded:6};
+      writes.push(["UPDATE site_orders SET status=?,payment_status=CASE WHEN payment_status='refunded' OR (payment_status='paid' AND ?='due') THEN payment_status ELSE ? END WHERE local_order_id=? AND CASE status WHEN 'confirmed' THEN 1 WHEN 'accepted' THEN 1 WHEN 'preparing' THEN 2 WHEN 'ready' THEN 3 WHEN 'completed' THEN 4 WHEN 'fulfilled' THEN 4 WHEN 'cancelled' THEN 5 WHEN 'refunded' THEN 6 ELSE 99 END<=? AND NOT EXISTS(SELECT 1 FROM site_sync_receipts WHERE event_key=?)",status,text(row.payment_status,30),text(row.payment_status,30),String(row.id),rank[status],key]);}
     writes.push(['INSERT OR IGNORE INTO site_sync_receipts(event_key) VALUES(?)',key]);await db.batch(writes);return json({ok:true});
   }
   // There are no public staff, owner-report, database, or administrative routes.

@@ -23,6 +23,10 @@ Local website: http://127.0.0.1:4173/customer/
 
 Demo staff login: **owner** / **1234**, only with explicit local demo mode. Public-connected production uses your configured strong password.
 
+Website orders now enter **Orders & kitchen → Incoming Online Orders**. Staff must select **Accept Order** before stock is deducted or a kitchen ticket appears. Failed validation stays in **Needs Review**; its reason and retry controls remain visible. Kitchen automatically refreshes and uses New → Preparing → Ready → Fulfilled. Collect payment before fulfillment. A rejected order shows the entered reason to the customer.
+
+The real menu is being configured. Experimental data is retained, while unverified prices, recipes and new drafts are blocked from sales. See [real menu setup](REAL_MENU_SETUP.md). The website may have no orderable products until actual costs, recipes and selling prices are entered.
+
 The public website is accessible from other devices. Keep the configured restaurant computer awake, online and running the POS to receive website orders. Localhost links only work on this computer while the services are running. Do not open HTML files directly: use the launchers so ordering and databases work. See [the public hosting guide](trackbite-system/docs/PUBLIC-HOSTING.md).
 
 ## Where files live

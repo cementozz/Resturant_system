@@ -25,6 +25,7 @@ add('GET','/api/audit','audit.read');add('POST','/api/admin/backup','backup.mana
 add('GET','/api/print-queue','printing.use');add('GET','/api/printing/jobs','printing.use');add('GET','/api/printing/jobs/:id/preview','printing.use');
 for(const action of ['retry','confirm'])add('POST','/api/printing/jobs/:id/'+action,'printing.use');
 add('POST','/api/printing/reprint','printing.use');add('POST','/api/printing/complete','printing.use');add('GET POST','/api/printing/settings','printing.manage');add('POST','/api/printing/test','printing.manage');add('GET','/api/printing/devices','printing.manage');
+add('POST','/api/online-orders/:id/accept','orders.confirm');add('POST','/api/online-orders/:id/retry','orders.confirm');add('POST','/api/online-orders/:id/reject','orders.reject');
 add('GET','/api/sync/status','sync.manage');add('GET','/api/sync/pending','sync.manage');add('POST','/api/sync/retry','sync.manage');
 add('GET POST','/api/loyalty/settings','loyalty.adjust');add('POST','/api/loyalty/rewards','loyalty.adjust');add('POST','/api/loyalty/adjust','loyalty.adjust');add('GET','/api/loyalty/customer','loyalty.read');add('GET','/api/remote/status','users.manage');
 add('GET','/api/updates/check','users.manage');

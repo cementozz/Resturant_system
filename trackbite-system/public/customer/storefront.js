@@ -40,5 +40,5 @@ async function load(initial=false){
   }catch(e){shop.online=false;renderMethods();renderCart();if(initial){$('#webProducts').innerHTML=`<div class="empty"><p>${t('تعذر تحميل القائمة. تحقق من الاتصال وحاول مرة أخرى.','Could not load the menu. Check your connection and try again.')}</p><button id="retryMenu">${t('حاول مرة أخرى','Try again')}</button></div>`;$('#retryMenu').onclick=()=>load(true)}}finally{refreshing=false}
 }
 renderCopy();load(true);
-setInterval(async()=>{if(document.hidden)return;try{const health=await request('/api/status');shop.online=shop.catalog.service==='local'?health.ok:health.restaurantOnline;renderMethods();renderCart();await track()}catch{shop.online=false;renderMethods();renderCart()}},10000);
+setInterval(async()=>{if(document.hidden)return;try{const health=await request('/api/status');shop.online=shop.catalog.service==='local'?health.sync?.online:health.restaurantOnline;renderMethods();renderCart();await track()}catch{shop.online=false;renderMethods();renderCart()}},10000);
 setInterval(()=>{if(!document.hidden&&!$('#dialog').open)load()},45000);

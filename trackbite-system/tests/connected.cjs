@@ -3,6 +3,7 @@ const assert=require('node:assert/strict'),crypto=require('node:crypto'),{Databa
  const request=async(route,b,cookie,method)=>{const r=await fetch(f.cloudUrl+route,{method:method||(b===undefined?'GET':'POST'),headers:{origin:f.cloudUrl,'content-type':'application/json',...(cookie?{cookie}:{})},body:b===undefined?undefined:JSON.stringify(b)}),d=await r.json();assert(r.ok,route+': '+JSON.stringify(d));return {...d,cookie:r.headers.get('set-cookie')?.split(';')[0]}};
  const account=await request('/api/account/signup',{name:'Connected Test',phone:'01088888888',password:'Private-Test-Password-789'});
  const placed=(await request('/api/orders',{requestId:crypto.randomUUID(),items:[{productId:1,qty:1}],customerName:'Connected Test',customerPhone:'01088888888',orderType:'pickup',expectedTotal:150},account.cookie)).order;
+ await f.until(async()=>(await f.pos('/api/orders')).incomingOnlineOrders.some(o=>o.id===placed.id));await f.pos('/api/online-orders/'+placed.id+'/accept',{});
  const order=await f.until(async()=>{const d=await f.pos('/api/orders');return d.orders.find(o=>o.request_id===placed.id)});assert.equal(order.customer_id,account.customer.id);
  await f.pos('/api/shifts/open',{openingCash:1000});await f.pos('/api/orders/'+order.id+'/collect',{payments:[{methodId:1,amount:150}]});for(const status of ['preparing','ready','fulfilled'])await f.pos('/api/orders/'+order.id+'/fulfill',{status});
  await f.until(async()=>(await request('/api/account/loyalty',undefined,account.cookie)).balance===15);

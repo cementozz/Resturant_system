@@ -1,70 +1,43 @@
-# Test report
+# Test report — order confirmation and real menu setup
 
-Date: 2026-09-28. Windows, Node 22.23.3, real installed Google Chrome controlled by Playwright, and the real Workers/D1 runtime through Miniflare. Baseline acf644a; final source includes upstream a64e13c and 3b3bdbb. All data-bearing automated tests use disposable SQLite/D1 databases. No real customer/order or live migration was created by testing.
+Executed 28 September 2026 on Windows with Node 22.23.3, installed Google Chrome through Playwright, and Workers/D1 through Miniflare. Transactional tests use disposable databases and test accounts. No new production order, sale, refund or stock movement was created for these tests.
 
-## Baseline before changes
+## Final commands and results
 
-| Command | Result |
+| Command / suite | Result |
 |---|---|
-| Application npm test | PASS: smoke, sync-smoke, platform, resilience, storefront |
-| Root npm ci | PASS: 52 packages |
-| Root npm run build | PASS |
-| Root npm test | PASS: 11 hosted-cloud checks |
-| PowerShell tools/test.ps1 | PASS: all five application suites |
-| Chrome baseline, six staff roles | Login/navigation exercised; Kitchen customer navigation and unreachable user-edit controls identified |
-
-The passing baseline did not provide account, loyalty, remote command, release installer or comprehensive authorization coverage.
-
-## Final executed checks
-
-| Command / suite | Exact final result |
-|---|---|
-| Root npm ci --offline --cache .runtime/npm-cache --no-audit --no-fund | PASS: 55 packages installed from the available cache |
-| npm run check | PASS: 90 JavaScript/CommonJS/module files parsed |
-| npm run build | PASS: Worker and customer assets generated; staff POS pages and restaurant data excluded |
-| npm test --prefix trackbite-system | PASS: all five original suites, including after merging newest GitHub changes |
-| powershell -NoProfile -ExecutionPolicy Bypass -File tools/test.ps1 | PASS: five suites; machine execution policy unchanged |
-| Root npm test: hosted-cloud.cjs | PASS: 11 checks, real D1 persistence, private sync auth, concurrent duplicate ordering and status replay |
-| Root npm test: security.cjs | PASS: 640 authorization cases covering 94 protected endpoints, plus validation/session/stock/loyalty/security checks |
-| Root npm test: accounts.cjs | PASS: 12 check groups, scrypt, unique phone, two-device cookie sessions, addresses/favourites/history isolation, logout/password revocation, concurrent redemption and origin rejection |
-| Root npm test: connected.cjs | PASS: 17 check groups, actual POS + Worker/D1, offline recovery, poison event isolation, accounts/loyalty/refunds/rewards, remote commands and catalog revisions |
-| Root npm test: updates.cjs | PASS: 5 approval/version/integrity/source checks |
-| npm run test:browser | PASS: 8 workflow groups; desktop and 390-pixel mobile; zero unexpected console errors or page errors |
-| powershell -NoProfile -ExecutionPolicy Bypass -File tools/test-updater.ps1 | PASS: success, bad-checksum rejection, failed-health application rollback; orders/secrets/committed migrations preserved |
+| npm run check | PASS — 104 JavaScript/CommonJS/module files |
+| npm run build | PASS — Worker/customer assets; staff app and local data excluded |
+| Root npm test: hosted-cloud | PASS — 12 check groups |
+| Root npm test: security | PASS — 661 authorization cases over 97 protected endpoints, plus 20 check groups |
+| Root npm test: accounts | PASS — 13 check groups |
+| Root npm test: connected | PASS — 17 check groups |
+| Root npm test: updates | PASS — 5 check groups |
+| Root npm test: online-orders | PASS — 21 scenarios |
+| Root npm test: real-menu | PASS — 15 scenarios |
+| npm test --prefix trackbite-system | PASS — all 5 suites: smoke, sync-smoke, platform, resilience, storefront |
+| npm run test:browser: browser.cjs | PASS — 8 check groups, including all six staff roles |
+| npm run test:browser: kitchen-browser.cjs | PASS — 5 scenario groups, simultaneous customer/Owner/Kitchen browsers |
 | git diff --check | PASS |
 
-The authorization count includes permission decisions for allowed combinations, HTTP denials for every forbidden role/route, and HTTP 401 for anonymous access to every protected route. Separate integration/browser scenarios exercise successful business operations. It does not imply every possible successful payload for every endpoint was executed.
+## Order confirmation evidence
 
-The security suite also runs inventory edge cases: FIFO/FEFO/preferred ordering, variant-specific rejection, brand substitution, timezone expiry boundary, physical consumption restrictions, duplicate stocktake rejection, invalid expiry, negative-ledger prevention, and failed production/transfer rollback. Migration tests upgrade pre-daily-numbering and pre-identity snapshots containing an existing order, preserving user/stock/order data and passing SQLite integrity checks. Staff session revocation, global IDs and migration idempotency are checked.
+The 21 order scenarios cover durable arrival without transactional side effects; restart before acceptance; simultaneous Accept; duplicate checkout; customer-visible rejection; stock shortage rollback; retry without acceptance; injected failures after stock deduction, before print queue, before cloud mapping and before local decision commit; cloud ACK failures both before and after cloud commit; price changes; outage and restart; forward-only fulfillment with independent payment; payment insertion failure; tracking; duplicate refunds; printer transport failure; and stale-heartbeat checkout pause.
 
-Browser coverage: Arabic/English direction, signup/login/logout, account address save, search, favourites, customization/notes, cart quantity edits, pickup and delivery checkout, tracking, cross-device history/reorder, points/reward display; all six staff role logins/navigation; shift open/close, customer lookup/attachment, split payment, receipt preview, order progression, receive/transfer/waste/production/stocktake, recipe editing and reports; remote Owner login, price change, recipe-based publication and reward creation.
+Both ACK failure scenarios also progress the kitchen while acknowledgement is unavailable, restart the POS process, and verify the queued progress arrives after recovery without another order, deduction or ticket. Hosted tests verify both replayed and newly identified stale events cannot regress terminal fulfillment or paid status. Account tests reject a reward-backed order twice and verify its reservation is restored exactly once.
 
-## Failures found during implementation
+The browser tests exercise pickup in English and delivery in Arabic at mobile width, with modifiers and item/order notes. Before Accept, no local order or preparation action appears. Explicit acceptance creates the kitchen card automatically, one-tap statuses update customer tracking, and fulfillment persists after refresh. Kitchen cards exclude phone numbers and financial values. Owner health/timeout controls are visible, polling stops after logout, and no unexpected console/page errors occur.
 
-Phone-pattern browser errors, collection-selector customer attachment errors, a required remote-form reason omitted by the test, an asynchronous refresh race, and a quoted numeric selector in the test were corrected before the final browser pass. A new cloud-balance assertion exposed an incorrect HTTP request option; the endpoint and assertion now pass. Initial new stock fixture setup attempted a forbidden immutable update, omitted a required batch field and asserted the wrong invalid-location error; the fixture now inserts valid immutable rows and verifies rollback. These were not ignored failures.
+Additional browser coverage retains POS sales, shifts, split payments, print previews, receiving, transfers, waste, production, stocktake, recipe editing, reports, remote Owner administration, loyalty, account history and reorder.
 
-PowerShell blocks npm.ps1 under the machine policy; npm.cmd is used for direct npm commands. The Node SQLite experimental warning is expected runtime output, not a browser console error or a failing assertion.
+## Menu/costing evidence
 
-GitHub CI initially passed Windows updater and all Linux build/integration steps, then exposed a stock-form test timing race. The browser helper now waits for the submitted form to disappear after refresh instead of relying on a 150 ms delay.
+The 15 seed/costing scenarios verify repeatable seeding without duplicate categories/products/ingredients/templates; unchanged order/purchase/stock/customer/recipe/modifier history; all 29 supplied SKUs with existing Cola reuse; generic ingredients; seven inactive extras with unknown prices; blocked draft sales/publication; equivalent fries reuse; unknown costs without misleading margins; costing before selling-price entry; deliberate publication after setup; latest and weighted-average cost recalculation; carton-to-piece conversion; missing packaging with known subtotal; repeatable experimental archival; and unknown receipt prices remaining null rather than zero.
 
-## Boundaries
+Tests use explicitly supplied fixture prices/recipes only. They do not establish any real restaurant recipe, purchase cost, selling price or physical quantity.
 
-CI is configured for Ubuntu application/build/Worker/browser checks and Windows updater checks. Local results do not themselves prove remote GitHub CI passed; consult the PR's check results for that separate run. Do not merge while required checks fail.
+## Production verification and limits
 
-At the end of initial development, hosted rollout was pending phase 24 authorization. The later activation and remaining transactional test gate are recorded below. Physical thermal printers, Arabic raster output on actual hardware, Windows spoolers and a real cash drawer have not been certified. Existing tests simulate transport/queue behavior. Use HARDWARE_ACCEPTANCE.md.
+See DEPLOYMENT_STATUS.md for the deployed source, backup/seed summary, history comparison and read-only pairing verification. The historical pending experimental order must remain visible; it must not be accepted merely to make the health check appear clear.
 
-No GitHub Release package has been published or installed on the restaurant PC. Updater network/service operations are mocked in disposable Windows workspaces. Historical-database compatibility must be reviewed before approving a real release. See DEPLOYMENT_CHECKLIST.md.
-
-## Authorized production activation
-
-GitHub CI run 36356782944 passed both Ubuntu verification (including browser E2E) and Windows updater checks for deployed commit 784bd63. After explicit user authorization, Sites version 2 and the paired POS were activated. The post-deployment read-only browser/API checks passed with zero console/page errors, matching catalog revisions, healthy synchronization, all six strong staff logins and preserved existing operational records. See DEPLOYMENT_STATUS.md.
-
-Automatic approval review blocked the proposed live test account/order/payment/stock/loyalty transaction; that script did not run. End-to-end live transaction verification therefore remains pending explicit authorization. Isolated transaction tests passed and do not substitute for that hosted acceptance gate.
-
-## Completed hosted transaction acceptance
-
-Following the user's explicit approval, the live acceptance run passed all eight check groups: browser signup; same account UUID in two browsers; website order imported once into POS; paid/fulfilled loyalty earning; synchronized status/history; audited refund restoring stock and points; remote Owner portal login; zero unexpected browser console/page errors. Exactly 3 earned points were reversed, test collection/refund netted to zero, and the marked account and temporary payment method were disabled. The cloud order finished cancelled/refunded.
-
-A no-change remote menu-price command reached Applied and preserved the published price. The first manual Node HTTP probe incorrectly replaced its staff cookie with an unrelated hosting cookie; the probe was corrected to retain the named staff cookie and then passed. Real-browser authentication had already passed. No application change was required. Final production checks: online, matching catalog revisions, zero pending events, zero dead letters, no last sync error, SQLite integrity OK.
-
-GitHub PR #1 is merged and the local checkout is on main. The deployed application code matches the merged version. All source CI checks passed before the merge; subsequent documentation records these live results. Physical printer acceptance remains outstanding.
+The real purchase receipt has not been provided in an accessible file or identified in the app. Real menu prices and recipe quantities remain incomplete. Existing stock is experimental and needs reconciliation before actual service. Physical printer output requires testing on the restaurant's connected hardware; automated transport/queue checks and browser previews do not certify a physical printer. No claim of zero possible defects is made.

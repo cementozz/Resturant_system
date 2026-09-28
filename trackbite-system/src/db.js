@@ -92,5 +92,7 @@ require('./compatibility-migration')(db);
 require('./daily-orders-migration')(db,dbPath);
 require('./reliability-migration')(db,dbPath);
 require('./loyalty-migration')(db,dbPath);
+require('./online-orders-migration')(db,dbPath);
+require('./menu-setup-migration')(db,dbPath);
 
 module.exports = { db, one, all, run, transaction, dbPath };

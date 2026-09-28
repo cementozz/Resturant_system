@@ -15,6 +15,7 @@ async function j(base,url,opt={}){const r=await fetch(base+url,opt);const d=awai
  const web=await j('http://127.0.0.1:5193','/api/orders',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({items:[{productId:1,qty:1}],customerName:'Cloud Customer',customerPhone:'01012345678',requestId:require('crypto').randomUUID(),expectedTotal:150})});
  await sleep(900);
  const login=await j('http://127.0.0.1:4193','/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({username:'owner',password:'1234'})});
+ await j('http://127.0.0.1:4193','/api/online-orders/'+web.order.id+'/accept',{method:'POST',headers:{authorization:'Bearer '+login.token,'content-type':'application/json'},body:'{}'});
  const list=await j('http://127.0.0.1:4193','/api/orders',{headers:{authorization:'Bearer '+login.token}});const imported=list.orders.find(x=>x.source==='web');if(!imported)throw new Error('Cloud web order not imported to restaurant');
  await sleep(600);const events=await j('http://127.0.0.1:5193','/api/sync/events',{headers:{'x-sync-secret':secret}});if(!events.rows.length)throw new Error('Local sync event was not pushed to cloud');
  console.log(JSON.stringify({ok:true,cloudOrder:web.order.sequential_no,localOrder:imported.sequential_no,catalogProducts:menu.products.length,events:events.rows.length},null,2));

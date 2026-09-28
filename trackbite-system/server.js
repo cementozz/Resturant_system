@@ -40,7 +40,7 @@ async function apiRequest(req,res,url){
     const permission=route.permission;
     if(permission){if(!user)return json(res,401,{error:'Unauthorized'});if(permission!=='authenticated')requestContext.getStore().approvedBy=permissions.requirePermission(user,permission,payload.approval);requestContext.getStore().reason=payload.reason||payload.note||null}
     if(await platform.handle(req,res,url,user,payload,json))return;
-    if(req.method==='GET' && url.pathname==='/api/status') return json(res,200,{ok:true,restaurant:one("SELECT value FROM settings WHERE key='restaurant_name_en'")?.value||'Track Bite',time:new Date().toISOString(),service:'Track Bite POS',sync:user&&permissions.can(user,'sync.manage')?sync.getSyncStatus():{enabled:sync.getSyncStatus().enabled,online:sync.getSyncStatus().online,lastSuccess:sync.getSyncStatus().lastSuccess}});
+    if(req.method==='GET' && url.pathname==='/api/status') return json(res,200,{ok:true,restaurant:one("SELECT value FROM settings WHERE key='restaurant_name_en'")?.value||'Track Bite',time:new Date().toISOString(),service:'Track Bite POS',sync:user&&permissions.can(user,'sync.manage')?sync.getSyncStatus():{environment:sync.getSyncStatus().environment,cloudOrigin:sync.getSyncStatus().cloudOrigin,installationSuffix:sync.getSyncStatus().installation?.slice(-4),pairingVerified:sync.getSyncStatus().pairingVerified,enabled:sync.getSyncStatus().enabled,online:sync.getSyncStatus().online,lastSuccess:sync.getSyncStatus().lastSuccess}});
     if(req.method==='POST' && url.pathname==='/api/login'){
       const b=await bodyJson(req);auth.limit(req,String(b.username||'')); const username=String(b.username||'').trim(); const password=String(b.password||''); const u=one('SELECT * FROM users WHERE username=? AND active=1',username);
       if(!u||!auth.verifyPassword(password,u.password_hash)) return json(res,401,{error:'Invalid username or password'});
@@ -71,7 +71,7 @@ async function apiRequest(req,res,url){
     if(req.method==='GET' && url.pathname==='/api/inventory/summary'){const u=requireUser(req,res); if(!u)return; return json(res,200,{summary:inventory.stockSummary(),rows:inventory.stockRows()})}
     if(req.method==='POST' && url.pathname==='/api/inventory/receive'){
       const u=requireUser(req,res); if(!u)return; const b=await bodyJson(req);
-      const qtyBase=inventory.receiveStock({variantId:Number(b.variantId),locationId:Number(b.locationId),quantityPurchase:Number(b.quantityPurchase),unitPricePurchase:Number(b.unitPricePurchase||0),userId:u.id,note:b.note||null,batchNumber:b.batchNumber,expiresOn:b.expiresOn});
+      const qtyBase=inventory.receiveStock({variantId:Number(b.variantId),locationId:Number(b.locationId),quantityPurchase:Number(b.quantityPurchase),unitPricePurchase:b.unitPricePurchase,userId:u.id,note:b.note||null,batchNumber:b.batchNumber,expiresOn:b.expiresOn});
       audit(u.id,'stock_receive','variant',String(b.variantId),b); return json(res,201,{ok:true,quantityBase:qtyBase});
     }
     if(req.method==='POST' && url.pathname==='/api/inventory/transfer'){
@@ -103,7 +103,7 @@ async function apiRequest(req,res,url){
       let order;try{order=orders.createOrder({source:isWeb?'web':'pos',userId:u.id,shiftId,customerId:b.customerId||null,reward:reservation?.reward||null,customerName:b.customerName||null,customerPhone:b.customerPhone||null,orderType:b.orderType||'pickup',items:b.items||[],payments:b.payments||[],notes:b.notes||null,requestId:b.requestId||null,discount:b.discount||0,deliveryAddress:b.deliveryAddress||null,deliveryDetails:b.deliveryDetails||{},deliveryFee:b.deliveryFee||0});}catch(e){if(reservation&&!one('SELECT id FROM orders WHERE request_id=?',b.requestId))try{await require('./src/sync-service').cloud('/api/sync/loyalty/release',{method:'POST',body:JSON.stringify({requestId:b.requestId})})}catch{}throw e}
       if(!isWeb)audit(u.id,'order_create','order',order.id,{total:order.total}); return json(res,201,{order});
     }
-    if(req.method==='GET' && url.pathname==='/api/orders'){const u=requireUser(req,res); if(!u)return; const rows=orders.listOrders(Number(url.searchParams.get('limit')||100),Object.fromEntries(url.searchParams)); return json(res,200,{orders:rows.map(o=>require('./src/response-views').order(u,o))})}
+    if(req.method==='GET' && url.pathname==='/api/orders'){const u=requireUser(req,res); if(!u)return; const rows=orders.listOrders(Number(url.searchParams.get('limit')||100),Object.fromEntries(url.searchParams)); return json(res,200,{orders:rows.map(o=>require('./src/response-views').order(u,{...o,failed_prints:all("SELECT id FROM print_queue WHERE order_id=? AND job_type='kitchen' AND status='failed'",o.id).map(j=>j.id)})),incomingOnlineOrders:require('./src/online-orders').list(u)})}
     if(req.method==='GET' && url.pathname.startsWith('/api/orders/')){const u=requireUser(req,res); if(!u)return; const id=decodeURIComponent(url.pathname.split('/').pop()); const o=orders.getOrder(id); return o?json(res,200,{order:require('./src/response-views').order(u,o)}):json(res,404,{error:'Not found'})}
 
 
@@ -170,7 +170,7 @@ async function apiRequest(req,res,url){
     if(req.method==='GET' && url.pathname==='/api/print-queue'){const u=requireUser(req,res); if(!u)return; return json(res,200,{jobs:all("SELECT * FROM print_queue WHERE status='pending' ORDER BY id").filter(j=>permissions.can(u,'customers.pii')||j.job_type==='kitchen').map(j=>!permissions.can(u,'customers.pii')?{id:j.id,order_id:j.order_id,job_type:j.job_type,status:j.status,station_code:j.station_code}:j)})}
     if(req.method==='GET' && url.pathname==='/api/sync/pending'){const u=requireUser(req,res); if(!u)return; return json(res,200,{rows:all("SELECT * FROM sync_queue WHERE status='pending' ORDER BY id LIMIT 500")})}
 
-    if(req.method==='GET' && url.pathname==='/api/public/menu')return json(res,200,{...require('./src/catalog').build(),service:'local',online:true});
+    if(req.method==='GET' && url.pathname==='/api/public/menu')return json(res,200,{...require('./src/catalog').build(),service:'local',online:sync.getSyncStatus().online});
 
     return json(res,404,{error:'API endpoint not found'});
   } catch(e){ console.error(e); return json(res,e.status||400,{error:e.message||'Request failed'}); }
