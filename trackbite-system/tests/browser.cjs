@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),{chromium}=require('playwright');
 (async()=>{const f=await require('./fixture.cjs')();let browser;try{
  browser=await chromium.launch({...(process.platform==='win32'?{channel:'chrome'}:{}),headless:true});const errors=[],checks=[];
- const watch=page=>{page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text())})};
+ const watch=page=>{page.on('pageerror',e=>{errors.push(e.message);console.error('Browser error: '+e.message)});page.on('console',m=>{if(m.type()==='error')errors.push(m.text())})};
  const context=await browser.newContext(),page=await context.newPage();watch(page);await page.goto(f.cloudUrl+'/customer/');await page.locator('.product').first().waitFor();assert.equal(await page.locator('.product').count(),4);await page.locator('#webLanguage').click();assert.equal(await page.locator('html').getAttribute('dir'),'ltr');
  await page.locator('[data-action=profile]').first().click();await page.locator('#switchAccount').click();await page.locator('#dialog [name=name]').fill('Browser Account');await page.locator('#dialog [name=phone]').fill('01055555555');await page.locator('#dialog [name=password]').fill('Browser-Password-123!');await page.locator('#dialog button[type=submit]').click();await page.locator('#dialog').waitFor({state:'hidden'});
  await page.locator('[data-action=profile]').first().click();await page.locator('#accountAddresses').click();await page.locator('#dialog [name=label]').fill('Home');await page.locator('#dialog [name=fullAddress]').fill('Isolated browser address');await page.locator('#dialog button[type=submit]').click();await page.locator('#dialog').waitFor({state:'hidden'});

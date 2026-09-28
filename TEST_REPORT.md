@@ -1,4 +1,4 @@
-# Test report — order confirmation and real menu setup
+# Test report — UX simplification, order confirmation and real menu setup
 
 Executed 28 September 2026 on Windows with Node 22.23.3, installed Google Chrome through Playwright, and Workers/D1 through Miniflare. Transactional tests use disposable databases and test accounts. No new production order, sale, refund or stock movement was created for these tests.
 
@@ -6,19 +6,27 @@ Executed 28 September 2026 on Windows with Node 22.23.3, installed Google Chrome
 
 | Command / suite | Result |
 |---|---|
-| npm run check | PASS — 104 JavaScript/CommonJS/module files |
+| npm run check | PASS — 123 JavaScript/CommonJS/module files, including module parsing |
 | npm run build | PASS — Worker/customer assets; staff app and local data excluded |
 | Root npm test: hosted-cloud | PASS — 12 check groups |
-| Root npm test: security | PASS — 661 authorization cases over 97 protected endpoints, plus 20 check groups |
+| Root npm test: security | PASS — 794 authorization cases over 116 protected endpoints, plus 20 check groups |
 | Root npm test: accounts | PASS — 13 check groups |
 | Root npm test: connected | PASS — 17 check groups |
 | Root npm test: updates | PASS — 5 check groups |
 | Root npm test: online-orders | PASS — 21 scenarios |
 | Root npm test: real-menu | PASS — 15 scenarios |
+| Root npm test: ux-service | PASS — 12 scenarios |
 | npm test --prefix trackbite-system | PASS — all 5 suites: smoke, sync-smoke, platform, resilience, storefront |
 | npm run test:browser: browser.cjs | PASS — 8 check groups, including all six staff roles |
 | npm run test:browser: kitchen-browser.cjs | PASS — 5 scenario groups, simultaneous customer/Owner/Kitchen browsers |
+| npm run test:browser: ux-browser.cjs | PASS — 16 workflow groups |
 | git diff --check | PASS |
+
+## UX simplification evidence
+
+The 12 service scenarios cover normalized material/supplier reuse; default locations and displayed units; purchase unit/total conversion and retry idempotency; unknown-price rejection and historical-unit protection; stock transfer and production; reusable templates; preview without writes; atomic import rollback and repeat prevention; archive with stock history intact; and explicit resolution of ambiguous invoice matches.
+
+The 16 Playwright groups exercise inline selling-price changes; material creation, inline edits, archive and restore; invoices with a new supplier/existing material and existing supplier/new material; CSV preview and commit; compact recipe editing; warehouse transfer; saved production templates; cashier hover preview and acceptance; one-click kitchen progress and ready-order payment; task Help; global search; and Arabic mobile rendering with no unexpected browser errors. Desktop material/invoice screenshots and the Arabic mobile screenshot were visually inspected. The original staff browser tests still cover the detailed inventory tools through their new More details entry point.
 
 ## Order confirmation evidence
 

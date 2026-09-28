@@ -1,6 +1,10 @@
 // Authoritative method + path + capability registry. Unknown routes fail closed.
 const routes=[];
 function add(methods,path,permission){for(const method of methods.split(' '))routes.push({method,path,permission,regex:new RegExp('^'+path.replace(/:[a-z]+/g,'[^/]+')+'$')})}
+add('GET','/api/materials','inventory.read');add('POST','/api/materials','inventory.write');add('PATCH','/api/materials/:id','inventory.write');
+add('GET','/api/production-templates','inventory.read');add('POST','/api/production-templates','inventory.write');
+for(const [name,permission] of Object.entries({suppliers:'purchases.write',categories:'menu.write',customers:'customers.edit',purchases:'purchases.write',transfer:'inventory.transfer',production:'inventory.write'}))add('POST','/api/ux/'+name,permission);
+for(const [name,permission] of Object.entries({materials:'inventory.write',menu:'menu.write',prices:'menu.write',purchases:'purchases.write'}))for(const action of ['preview','commit'])add('POST','/api/imports/'+name+'/'+action,permission);
 add('GET','/api/status',null);add('POST','/api/login',null);add('POST','/api/logout','authenticated');
 add('GET','/api/public/menu',null);add('POST','/api/public/orders',null);add('GET','/api/tracking/:token',null);
 add('GET','/api/me','authenticated');add('GET','/api/bootstrap','authenticated');

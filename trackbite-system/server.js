@@ -173,7 +173,7 @@ async function apiRequest(req,res,url){
     if(req.method==='GET' && url.pathname==='/api/public/menu')return json(res,200,{...require('./src/catalog').build(),service:'local',online:sync.getSyncStatus().online});
 
     return json(res,404,{error:'API endpoint not found'});
-  } catch(e){ console.error(e); return json(res,e.status||400,{error:e.message||'Request failed'}); }
+  } catch(e){ console.error(e); return json(res,e.status||400,{error:e.message||'Request failed',...(e.details?{details:e.details}:{})}); }
 }
 
 const mime={'.html':'text/html; charset=utf-8','.js':'application/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon','.json':'application/json; charset=utf-8'};
