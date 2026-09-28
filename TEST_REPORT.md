@@ -46,6 +46,6 @@ Tests use explicitly supplied fixture prices/recipes only. They do not establish
 
 ## Production verification and limits
 
-See DEPLOYMENT_STATUS.md for the deployed source, backup/seed summary, history comparison and read-only pairing verification. The historical pending experimental order must remain visible; it must not be accepted merely to make the health check appear clear.
+See DEPLOYMENT_STATUS.md for the deployed source, backup/seed summary, history comparison and read-only pairing verification. Deployment preserves the current operational state; pending experimental orders must never be accepted merely to make a health check appear clear. The final UX deployment passed 11 read-only live browser check groups, and its before/after operational-history hashes match. An existing loyalty event for an unlinked customer remains queued intentionally.
 
 The real purchase receipt has not been provided in an accessible file or identified in the app. Real menu prices and recipe quantities remain incomplete. Existing stock is experimental and needs reconciliation before actual service. Physical printer output requires testing on the restaurant's connected hardware; automated transport/queue checks and browser previews do not certify a physical printer. No claim of zero possible defects is made.

@@ -1,4 +1,23 @@
-# Production update — 28 September 2026
+# Production update — UX simplification, 28 September 2026
+
+Sites **version 6** deployed successfully from source `f5dab75c60b6b1cc9027dadacaae39eb7331a474`. GitHub main contains this implementation. The Windows POS is running with migration **13**. The existing public URL, public audience, D1 database, installation pairing and staff passwords were retained.
+
+- Website: https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/
+- Windows POS: http://127.0.0.1:4173/pos/
+- Run file: `02_START_POS.bat` in the repository root.
+- Daily workflow guide: [UX_SIMPLIFICATION.md](UX_SIMPLIFICATION.md).
+
+The staff interface now has nine clear sections, a dedicated Raw materials list, compact purchase and recipe rows, inline prices, warehouse-first stock, reusable production templates, CSV preview/import, compact website-order cards, ready-order payment, contextual Help and global search. Existing accounting, stock allocation, permissions, explicit website acceptance and printing services remain in place. Detailed inventory tools are available under More details. The sidebar scrolls on shorter screens and logout is accessible on mobile.
+
+The fresh pre-update SQLite backup and the automatic migration backup passed integrity verification. After activation, content hashes matched the pre-update snapshot for all **8 orders, 17 order items, 4 payments, 0 purchases, 76 stock movements, 3 customers, 16 recipe lines and 8 modifiers**. This snapshot reflects the records present immediately before this UX deployment; older reports below describe an earlier state. No live checkout, payment, stock operation, recipe edit or order acceptance/rejection was performed for this deployment. Backups and private check results are in `.runtime/backups/ux-simplification/`, excluded from GitHub.
+
+Read-only live browser verification passed **11 check groups**, covering Arabic/English public mobile rendering, Owner navigation, order queues, menu recipes, material batches/history, warehouses/advanced tools, compact invoices, Help/search, production settings, Kitchen financial restrictions, and zero unexpected browser errors. Isolated tests and GitHub CI passed; see [TEST_REPORT.md](TEST_REPORT.md).
+
+Production health confirmed the correct cloud origin, valid pairing, fresh heartbeat, matching catalog revisions, no last synchronization error, **0 failed jobs**, **0 pending order-decision acknowledgements**, and **0 incoming / 0 review orders**. One pre-existing local loyalty event remains queued because its customer has no linked website account. This is the existing intentional wait-for-account-link behavior; it does not block order/catalog synchronization, and the event was preserved rather than discarded or linked to a guessed account.
+
+The public menu still has **zero orderable products** because real costs, recipes and selling prices are incomplete. The ingredient purchase receipt, actual recipe quantities/prices, reconciliation of experimental opening stock, and physical printer verification are still required before real service. Keep this PC awake and the POS running to receive website orders. Strong staff credentials remain in the private `.runtime/access/PRODUCTION-LOGINS.txt` file.
+
+# Earlier production update — order confirmation and real-menu setup
 
 Sites **version 3** deployed successfully from source `468f650ab3a7b76a9fcc95a00eb15889755eef22`. GitHub main contains the same implementation. The existing public URL, audience, D1 data and installation pairing were retained:
 
