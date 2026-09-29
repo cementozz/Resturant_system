@@ -21,7 +21,7 @@ function createPurchase({supplierId,invoiceNo,items,userId}){
       run('INSERT INTO purchase_items(purchase_id,variant_id,location_id,quantity_purchase,quantity_base,unit_price_purchase,line_total) VALUES(?,?,?,?,?,?,?)',id,Number(item.variantId),Number(item.locationId),qPurchase,qBase,unitPrice,line);
       require('./inventory').receiveStock({...item,variantId:Number(item.variantId),locationId:Number(item.locationId),quantityPurchase:qPurchase,unitPricePurchase:unitPrice,userId,referenceId:id,note:invoiceNo?`Invoice ${invoiceNo}`:null});
     }
-    run('UPDATE purchases SET total=? WHERE id=?',total,id);
+    run('UPDATE purchases SET total=? WHERE id=?',total,id);require('./purchase-details').save(db,id);
   });
   return {id,total};
 }

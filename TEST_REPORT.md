@@ -1,4 +1,8 @@
-# Test report — UX simplification, order confirmation and real menu setup
+# Test report — forms, customers, categories and invoice details
+
+30 September 2026: all root service suites, all five application suites, and all four browser suites passed. Source validation covers **130 files**; authorization covers **843 denial cases over 123 protected endpoints**. The new `customer-workflows.cjs` suite adds **11** service/browser groups covering Egyptian number formats, duplicate records and preserved loyalty history, linked customer edits/session revocation, protected categories, immutable invoice snapshots/reopening/export, form cancellation and Arabic permissions. The existing browser suites retain their 8, 5 and 16 passing groups. See [change details](CUSTOMER_AND_FORMS_FIXES.md).
+
+## Earlier UX validation
 
 Executed 28 September 2026 on Windows with Node 22.23.3, installed Google Chrome through Playwright, and Workers/D1 through Miniflare. Transactional tests use disposable databases and test accounts. No new production order, sale, refund or stock movement was created for these tests.
 

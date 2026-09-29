@@ -7,7 +7,7 @@ function analytics(from,to){from=from||new Date().toISOString().slice(0,10);to=t
 async function handle(req,res,url,user,b,json){const path=url.pathname,method=req.method;const done=data=>{json(res,200,data);return true};
  if(await require('./reliability-api').handle(req,res,url,user,b,json))return true;
  if(await require('./public-order-api').handle(req,res,url,user,b,json))return true;
- if(require('./ux-api').handle(req,res,url,user,b,json))return true;
+ if(await require('./ux-api').handle(req,res,url,user,b,json))return true;
  if(require('./commercial-api').handle(req,res,url,user,b,json))return true;
  if(await require('./printing/api').handle(req,res,url,user,b,json))return true;
  const amendment=path.match(/^\/api\/orders\/([^/]+)\/amend$/);if(amendment&&method==='POST')return done({order:require('./printing/amendments').amend(amendment[1],b,user)});

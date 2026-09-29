@@ -1,0 +1,5 @@
+const lineSQL=`SELECT pi.*,i.name_ar,i.name_en,v.brand,v.purchase_unit,l.name_ar location_ar,l.name_en location_en FROM purchase_items pi JOIN ingredient_variants v ON v.id=pi.variant_id JOIN ingredients i ON i.id=v.ingredient_id JOIN stock_locations l ON l.id=pi.location_id WHERE pi.purchase_id=? ORDER BY pi.id`;
+function snapshot(db,id){return {items:db.prepare(lineSQL).all(id),supplier:db.prepare('SELECT s.name FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id WHERE p.id=?').get()?.name||null}}
+function save(db,id){db.prepare('INSERT OR IGNORE INTO purchase_snapshots(purchase_id,payload) VALUES(?,?)').run(id,JSON.stringify(snapshot(db,id)))}
+function get(id){const {db,one}=require('./db'),purchase=one('SELECT p.*,u.display_name_ar user_ar FROM purchases p LEFT JOIN users u ON u.id=p.user_id WHERE p.id=?',id);if(!purchase)throw Error('Purchase invoice not found');const stored=one('SELECT payload FROM purchase_snapshots WHERE purchase_id=?',id);return {...purchase,...(stored?JSON.parse(stored.payload):snapshot(db,id))}}
+module.exports={lineSQL,snapshot,save,get};

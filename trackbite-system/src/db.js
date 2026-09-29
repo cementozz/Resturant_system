@@ -94,6 +94,6 @@ require('./reliability-migration')(db,dbPath);
 require('./loyalty-migration')(db,dbPath);
 require('./online-orders-migration')(db,dbPath);
 require('./menu-setup-migration')(db,dbPath);
-require('./ux-migration')(db,dbPath);
+require('./ux-migration')(db,dbPath);require('./customer-migration')(db,dbPath);
 
 module.exports = { db, one, all, run, transaction, dbPath };

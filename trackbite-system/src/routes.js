@@ -1,7 +1,7 @@
 // Authoritative method + path + capability registry. Unknown routes fail closed.
 const routes=[];
 function add(methods,path,permission){for(const method of methods.split(' '))routes.push({method,path,permission,regex:new RegExp('^'+path.replace(/:[a-z]+/g,'[^/]+')+'$')})}
-add('GET','/api/materials','inventory.read');add('POST','/api/materials','inventory.write');add('PATCH','/api/materials/:id','inventory.write');
+add('GET','/api/purchases/:id','purchases.read');add('GET','/api/materials','inventory.read');add('POST','/api/materials','inventory.write');add('PATCH','/api/materials/:id','inventory.write');
 add('GET','/api/production-templates','inventory.read');add('POST','/api/production-templates','inventory.write');
 for(const [name,permission] of Object.entries({suppliers:'purchases.write',categories:'menu.write',customers:'customers.edit',purchases:'purchases.write',transfer:'inventory.transfer',production:'inventory.write'}))add('POST','/api/ux/'+name,permission);
 for(const [name,permission] of Object.entries({materials:'inventory.write',menu:'menu.write',prices:'menu.write',purchases:'purchases.write'}))for(const action of ['preview','commit'])add('POST','/api/imports/'+name+'/'+action,permission);
@@ -17,8 +17,8 @@ for(const [action,cap] of Object.entries({receive:'inventory.receive','receive-s
 add('POST','/api/production','inventory.write');add('POST','/api/stocktake','inventory.adjust');add('GET','/api/stocktakes','inventory.read');
 for(const name of ['suppliers','purchases','expenses']){const cap=name==='suppliers'?'purchases':name;add('GET','/api/'+name,cap+'.read');add('POST','/api/'+name,cap+'.write')}
 add('GET','/api/reports/today','reports.sales');add('GET','/api/reports/finance','reports.costs');add('GET','/api/reports/platform','reports.costs');
-add('GET','/api/menu/costing','reports.costs');add('GET','/api/menu/history','menu.read');add('POST DELETE','/api/menu/item','menu.write');add('GET','/api/menu/publication','menu.read');
-add('GET','/api/customers','customers.read');add('GET','/api/customers/lookup','customers.read');add('GET','/api/customers/:id','customers.read');add('POST','/api/customers/link','customers.edit');
+add('GET','/api/menu/categories','menu.read');add('POST DELETE','/api/menu/categories/:id','menu.write');add('GET','/api/menu/costing','reports.costs');add('GET','/api/menu/history','menu.read');add('POST DELETE','/api/menu/item','menu.write');add('GET','/api/menu/publication','menu.read');
+add('PATCH','/api/customers/:id','customers.edit');add('POST','/api/customers/:id/merge','customers.edit');add('GET','/api/customers/:id/matches','customers.edit');add('GET','/api/customers','customers.read');add('GET','/api/customers/lookup','customers.read');add('GET','/api/customers/:id','customers.read');add('POST','/api/customers/link','customers.edit');
 add('GET POST','/api/permissions','users.manage');add('GET POST','/api/admin/users','users.manage');add('PATCH','/api/admin/users/:id','users.manage');
 for(const name of ['categories','products','stations'])add('POST','/api/admin/'+name,'menu.write');add('PATCH','/api/admin/products/:id','menu.write');
 for(const name of ['ingredients','variants','locations','waste-reasons'])add('POST','/api/admin/'+name,'inventory.write');add('PATCH','/api/admin/variants/:id','inventory.write');
