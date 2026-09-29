@@ -1,4 +1,22 @@
-# Production update — UX simplification, 28 September 2026
+# Production update — 30 September 2026
+
+Sites **version 7** deployed successfully from source `4dbc2eb8d3609c6edadb4e9009907fbe65c632eb`. The Windows POS runs migration **14**. GitHub CI passed for this implementation. The existing public URL, audience, D1 data, pairing and passwords were retained.
+
+This release fixes closing/discarding forms, customer editing and normalized Egyptian mobile validation; adds reviewed duplicate merging/account linking; translates staff roles and permission descriptions; adds empty-category rename/deletion; and exposes saved invoice lines with print/PDF and standalone HTML export. See [the workflow notes](CUSTOMER_AND_FORMS_FIXES.md).
+
+The two legacy local records for the owner's supplied mobile were reviewed against its one existing active website account. One record is now an alias of the primary customer, and the primary is linked to that account. All six associated historical orders remain visible. No original order, address or loyalty entry was deleted or rewritten; the login number and password were not changed. All queued loyalty entries for this repaired customer synchronized successfully.
+
+Before activation a fresh SQLite backup passed integrity verification. Migration 14 also created a verified backup. Before/after hashes match for **12 orders, 21 order items, 12 payments, 1 purchase, 2 purchase items, 83 stock movements, 12 immutable loyalty entries, 20 recipe lines and 9 modifiers**. The existing purchase now opens with both saved lines and original amounts. Its labels were captured from the master data available at upgrade. Customer metadata changed only through the reviewed merge/link and normal account synchronization. Private backups are under `.runtime/backups/customer-fixes-2026-09-30/` and are excluded from GitHub.
+
+All service suites, all five application suites, and all four browser suites passed. Eight live browser groups passed with no unexpected console/page errors, covering form dismissal, actual invoice details, Arabic permissions, category controls, repaired customer history, Arabic mobile layout and public signup guidance. Actual invoice and permission screenshots were visually reviewed.
+
+Final health: correct production origin, valid pairing, fresh heartbeat, matching catalog revisions, no last sync error, no failed jobs, and no pending decision acknowledgements. Four unrelated loyalty entries remain queued for unlinked customers; the repaired customer's pending count is zero. One existing website order remains in Needs Review; no order was accepted, rejected, paid or refunded during this update. No live category was deleted and no purchase was created by testing.
+
+- POS: http://127.0.0.1:4173/pos/
+- Website: https://trackbite-restaurant.abdallah-abdelhady04.chatgpt.site/customer/
+- Launcher: `02_START_POS.bat`.
+
+# Earlier update — UX simplification, 28 September 2026
 
 Sites **version 6** deployed successfully from source `f5dab75c60b6b1cc9027dadacaae39eb7331a474`. GitHub main contains this implementation. The Windows POS is running with migration **13**. The existing public URL, public audience, D1 database, installation pairing and staff passwords were retained.
 
