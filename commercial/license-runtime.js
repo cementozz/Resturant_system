@@ -5,7 +5,7 @@ const crypto=require('crypto');
 const {execFileSync}=require('child_process');
 
 const PRODUCT='trackbite-commercial-v1';
-const PUBLIC_KEY=`-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEA5d4o334OkHOBKSw0Sx2e9ND93z+i+25FNRNbHp9dwYQ=\n-----END PUBLIC KEY-----\n`;
+const PUBLIC_KEY=`-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAhF28vtQInyHKK78EdcjmS9beqj7W7gJxLvrSk6fSnlQ=\n-----END PUBLIC KEY-----\n`;
 
 function b64urlToBuffer(v){return Buffer.from(String(v).replace(/-/g,'+').replace(/_/g,'/'),'base64')}
 function rootDir(){return path.resolve(__dirname,'..')}
