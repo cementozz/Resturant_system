@@ -1,5 +1,7 @@
 # Test report — forms, customers, categories and invoice details
 
+Invoice-header follow-up, 30 September: syntax check passed (130 files), both updated browser suites passed (11 and 16 groups), the 12 UX service scenarios passed, and all five application suites passed. Tests assert supplier/date retention through UI creation, database snapshots, restart, reopening and downloaded HTML. Legacy missing-supplier snapshots resolve their recorded supplier link without mutating history; invalid calendar dates roll back before any purchase is saved.
+
 30 September 2026: all root service suites, all five application suites, and all four browser suites passed. Source validation covers **130 files**; authorization covers **843 denial cases over 123 protected endpoints**. The new `customer-workflows.cjs` suite adds **11** service/browser groups covering Egyptian number formats, duplicate records and preserved loyalty history, linked customer edits/session revocation, protected categories, immutable invoice snapshots/reopening/export, form cancellation and Arabic permissions. The existing browser suites retain their 8, 5 and 16 passing groups. See [change details](CUSTOMER_AND_FORMS_FIXES.md).
 
 ## Earlier UX validation

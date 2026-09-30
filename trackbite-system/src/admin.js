@@ -8,12 +8,15 @@ const {number,required}=require('./validation');
 function listSuppliers(){return all('SELECT * FROM suppliers WHERE active=1 ORDER BY name')}
 function addSupplier({name,phone,notes}){const r=run('INSERT INTO suppliers(name,phone,notes) VALUES(?,?,?)',name,phone||null,notes||null);return Number(r.lastInsertRowid)}
 
-function createPurchase({supplierId,invoiceNo,items,userId}){
+function createPurchase({supplierId,invoiceNo,items,userId,date,invoiceDate,notes}){
   if(!Array.isArray(items)||!items.length)throw new Error('Purchase items required');
+  const savedDate=date??invoiceDate??null;
+  if(savedDate!==null&&(!/^\d{4}-\d{2}-\d{2}$/.test(savedDate)||!Number.isFinite(Date.parse(savedDate))||new Date(savedDate).toISOString().slice(0,10)!==savedDate))throw new Error('Choose a valid invoice date');
+  if(supplierId&&!one('SELECT id FROM suppliers WHERE id=?',Number(supplierId)))throw new Error('Select an existing supplier');
   const id=crypto.randomUUID();
   let total=0;
   transaction(()=>{
-    run('INSERT INTO purchases(id,supplier_id,invoice_no,total,user_id) VALUES(?,?,?,?,?)',id,supplierId||null,invoiceNo||null,0,userId);
+    run('INSERT INTO purchases(id,supplier_id,invoice_no,total,user_id,invoice_date,notes) VALUES(?,?,?,?,?,?,?)',id,supplierId||null,invoiceNo||null,0,userId,savedDate,notes||null);
     for(const item of items||[]){
       const v=one('SELECT conversion_to_base FROM ingredient_variants WHERE id=?',Number(item.variantId));
       if(!v) throw new Error('Purchase variant not found');
@@ -25,7 +28,7 @@ function createPurchase({supplierId,invoiceNo,items,userId}){
   });
   return {id,total};
 }
-function listPurchases(){return all(`SELECT p.*,s.name supplier_name,u.display_name_ar user_ar FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 100`)}
+function listPurchases(){return all(`SELECT p.*,COALESCE(json_extract(ps.payload,'$.supplier'),s.name) supplier_name,u.display_name_ar user_ar FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id LEFT JOIN purchase_snapshots ps ON ps.purchase_id=p.id LEFT JOIN users u ON u.id=p.user_id ORDER BY p.created_at DESC LIMIT 100`)}
 
 function createExpense({category,description,amount,paymentMethodId,shiftId,userId,date,notes,recurring}){return transaction(()=>{number(amount,'Expense');required(category,'Category');required(description,'Description');if(date&&(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date))))throw new Error('Invalid expense date');if(recurring&&!['daily','weekly','monthly','yearly'].includes(recurring))throw new Error('Invalid recurrence');if(!one('SELECT id FROM payment_methods WHERE id=? AND active=1',Number(paymentMethodId)))throw new Error('Payment method required');const id=crypto.randomUUID();run('INSERT INTO expenses(id,category,description,amount,payment_method_id,shift_id,user_id,expense_date,notes,recurring) VALUES(?,?,?,?,?,?,?,?,?,?)',id,category,description,number(amount),Number(paymentMethodId),shiftId||null,userId,date||new Date().toISOString().slice(0,10),notes||null,recurring||null);return id})}
 function listExpenses(){return all(`SELECT e.*,pm.name_ar payment_ar,pm.name_en payment_en,u.display_name_ar user_ar FROM expenses e LEFT JOIN payment_methods pm ON pm.id=e.payment_method_id LEFT JOIN users u ON u.id=e.user_id ORDER BY e.created_at DESC LIMIT 200`)}
