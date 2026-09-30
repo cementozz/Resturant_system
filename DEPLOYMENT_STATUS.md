@@ -1,3 +1,11 @@
+# POS invoice-header follow-up — 30 September 2026
+
+The local POS is running source `8c9b3bf1b61699858df9de7b19f0f2178a171423`, uploaded to GitHub. This update fixes purchase supplier/date snapshots and their staff display; the public website continues on Sites version 7 because no hosted website code changed.
+
+Read-only live verification opened the existing invoice twice, including after reload, and confirmed its linked supplier and actual invoice date **2026-09-29** in both the screen and exported HTML. The invoice date now has its own label, separate from system registration time. No supplier/date values, stock movements or purchase lines were invented or overwritten. Older snapshots remain immutable and use the purchase's existing supplier link when the snapshot name is absent.
+
+The fresh verified backup and post-restart history comparison matched all 13 orders, 22 order items, 12 payments, 1 purchase, 2 purchase items, 84 stock movements, 12 loyalty entries, 20 recipe lines and 9 modifiers. Eight relevant automated suites passed (two browser suites, UX service, five application suites), plus syntax checks. Live browser errors: zero. Production pairing, heartbeat and catalog revisions match, with zero failed jobs and no pending order decisions. The four unrelated unlinked-customer loyalty jobs are retained. Private verification: `.runtime/backups/invoice-header-fix-2026-09-30/`.
+
 # Production update — 30 September 2026
 
 Sites **version 7** deployed successfully from source `4dbc2eb8d3609c6edadb4e9009907fbe65c632eb`. The Windows POS runs migration **14**. GitHub CI passed for this implementation. The existing public URL, audience, D1 data, pairing and passwords were retained.
